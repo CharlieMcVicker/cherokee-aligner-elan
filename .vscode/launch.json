@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Flask Align Server",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/app.py",
+      "env": { "FLASK_ENV": "development", "PORT": "5050" },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Attach Java: ELAN Debugger (Port 5005)",
+      "type": "java",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005
+    }
+  ]
+}

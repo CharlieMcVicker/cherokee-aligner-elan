@@ -1,0 +1,18 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build & Install Plugin to ELAN",
+      "type": "shell",
+      "command": "mvn clean package && cp target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar ~/Library/Application\\ Support/ELAN/extensions/",
+      "options": { "cwd": "${workspaceFolder}/elan-plugin" },
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Launch ELAN in Debug Mode (macOS)",
+      "type": "shell",
+      "command": "/Applications/ELAN_6.6.app/Contents/MacOS/ELAN -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005",
+      "isBackground": true
+    }
+  ]
+}
