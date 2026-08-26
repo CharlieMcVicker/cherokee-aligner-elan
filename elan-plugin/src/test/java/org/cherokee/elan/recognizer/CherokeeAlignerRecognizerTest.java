@@ -18,13 +18,16 @@ import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import javax.swing.JPanel;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -64,6 +67,40 @@ public class CherokeeAlignerRecognizerTest {
 
         recognizer.setParameterValue("script_type", "latin");
         assertEquals("latin", recognizer.getParameterValue("script_type"));
+    }
+
+    @Test
+    void testControlPanelCreationAndPreferences() {
+        CherokeeAlignerRecognizer recognizer = new CherokeeAlignerRecognizer();
+        TestRecognizerHost host = new TestRecognizerHost();
+        recognizer.setRecognizerHost(host);
+
+        JPanel panel = recognizer.getControlPanel();
+        assertNotNull(panel);
+        assertTrue(panel instanceof CherokeeAlignerPanel);
+
+        CherokeeAlignerPanel alignerPanel = (CherokeeAlignerPanel) panel;
+        assertEquals("syllabary", alignerPanel.getScriptType());
+        assertEquals("words", alignerPanel.getTargetTierName());
+
+        recognizer.setParameterValue("script_type", "latin");
+        assertEquals("latin", alignerPanel.getScriptType());
+        assertEquals("latin", recognizer.getParameterValue("script_type"));
+
+        recognizer.setParameterValue("target_tier", "my_words");
+        assertEquals("my_words", alignerPanel.getTargetTierName());
+        assertEquals("my_words", recognizer.getParameterValue("target_tier"));
+
+        Map<String, Object> prefs = alignerPanel.getParamPreferences();
+        assertEquals("latin", prefs.get("script_type"));
+        assertEquals("my_words", prefs.get("target_tier"));
+
+        Map<String, Object> newPrefs = new HashMap<>();
+        newPrefs.put("script_type", "syllabary");
+        newPrefs.put("target_tier", "custom_words");
+        alignerPanel.setParamPreferences(newPrefs);
+        assertEquals("syllabary", alignerPanel.getScriptType());
+        assertEquals("custom_words", alignerPanel.getTargetTierName());
     }
 
     @Test

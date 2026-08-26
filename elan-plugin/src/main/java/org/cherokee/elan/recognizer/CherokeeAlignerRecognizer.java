@@ -1,5 +1,6 @@
 package org.cherokee.elan.recognizer;
 
+import mpi.eudico.client.annotator.recognizer.api.AbstractSelectionPanel;
 import mpi.eudico.client.annotator.recognizer.api.Recognizer;
 import mpi.eudico.client.annotator.recognizer.api.RecognizerConfigurationException;
 import mpi.eudico.client.annotator.recognizer.api.RecognizerHost;
@@ -44,6 +45,7 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
     private final AlignmentClient alignmentClient;
     private Thread workerThread;
     private volatile boolean isRunning = false;
+    private CherokeeAlignerPanel controlPanel;
 
     public CherokeeAlignerRecognizer() {
         this(new AlignmentClient());
@@ -96,12 +98,23 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
 
     @Override
     public JPanel getControlPanel() {
-        return null;
+        if (controlPanel == null) {
+            AbstractSelectionPanel selPanel = (host != null) ? host.getSelectionPanel(null) : null;
+            controlPanel = new CherokeeAlignerPanel(selPanel);
+        }
+        return controlPanel;
     }
 
     @Override
     public void setParameterValue(String paramName, String value) {
         parameters.put(paramName, value);
+        if (controlPanel != null) {
+            if ("script_type".equals(paramName)) {
+                controlPanel.setScriptType(value);
+            } else if ("target_tier".equals(paramName)) {
+                controlPanel.setTargetTierName(value);
+            }
+        }
     }
 
     @Override
@@ -111,17 +124,28 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
 
     @Override
     public Object getParameterValue(String paramName) {
+        if (controlPanel != null) {
+            if ("script_type".equals(paramName)) {
+                return controlPanel.getScriptType();
+            } else if ("target_tier".equals(paramName)) {
+                return controlPanel.getTargetTierName();
+            }
+        }
         return parameters.get(paramName);
     }
 
     @Override
     public void updateLocale(Locale locale) {
-        // No localized resources currently needed
+        if (controlPanel != null) {
+            controlPanel.updateLocale(locale);
+        }
     }
 
     @Override
     public void updateLocaleBundle(ResourceBundle bundle) {
-        // No localized resources currently needed
+        if (controlPanel != null) {
+            controlPanel.updateLocaleBundle(bundle);
+        }
     }
 
     @Override
@@ -132,6 +156,9 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
         File mediaFile = new File(mediaPaths.get(0));
         if (!mediaFile.exists()) {
             throw new RecognizerConfigurationException("Media file not found: " + mediaFile.getAbsolutePath());
+        }
+        if (controlPanel != null) {
+            controlPanel.validateParameters();
         }
     }
 
@@ -158,6 +185,7 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
         stop();
         mediaPaths.clear();
         parameters.clear();
+        controlPanel = null;
     }
 
     @Override
@@ -177,7 +205,9 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
             }
 
             File audioFile = new File(mediaPaths.get(0));
-            String scriptType = (String) parameters.getOrDefault("script_type", "syllabary");
+            String scriptType = (controlPanel != null)
+                    ? controlPanel.getScriptType()
+                    : (String) parameters.getOrDefault("script_type", "syllabary");
 
             String sourceTierName = "sentences";
             List<Segmentation> segmentations = null;
@@ -197,13 +227,20 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
             }
 
             // Determine target tier name (default: "words")
-            String targetTierName = "words";
+            String targetTierName = (controlPanel != null)
+                    ? controlPanel.getTargetTierName()
+                    : "words";
             if (parameters.containsKey("target_tier")) {
                 List<Segmentation> targetSegs = loadSegmentationsFromObject(parameters.get("target_tier"));
                 if (targetSegs != null && !targetSegs.isEmpty() && targetSegs.get(0).getName() != null && !targetSegs.get(0).getName().trim().isEmpty()) {
                     targetTierName = targetSegs.get(0).getName().trim();
+                } else if (parameters.get("target_tier") instanceof String) {
+                    String str = (String) parameters.get("target_tier");
+                    if (!str.trim().isEmpty()) {
+                        targetTierName = str.trim();
+                    }
                 }
-            } else if (sourceTierName != null && !sourceTierName.equalsIgnoreCase("sentences")) {
+            } else if (sourceTierName != null && !sourceTierName.equalsIgnoreCase("sentences") && (controlPanel == null || "words".equals(controlPanel.getTargetTierName()))) {
                 targetTierName = sourceTierName + "_words";
             }
 
@@ -389,7 +426,16 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
             }
         }
 
-        // 2. Fallback to host.getSegmentations() if available
+        // 2. Try checking control panel selections if available
+        if (controlPanel != null) {
+            List<RSelection> selections = controlPanel.getSelections();
+            if (selections != null && !selections.isEmpty()) {
+                Segmentation seg = new Segmentation("Selection", new ArrayList<>(selections), "Selection");
+                return Collections.singletonList(seg);
+            }
+        }
+
+        // 3. Fallback to host.getSegmentations() if available
         if (host != null) {
             List<Segmentation> hostSegs = host.getSegmentations();
             if (hostSegs != null && !hostSegs.isEmpty()) {
@@ -400,4 +446,3 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
         return Collections.emptyList();
     }
 }
-
