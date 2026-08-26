@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CMD CMDVersion="1.1" xmlns="http://www.clarin.eu/cmd/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.clarin.eu/cmd/ http://catalog.clarin.eu/ds/ComponentRegistry/rest/registry/profiles/clarin.eu:cr1:p_1430905751617/xsd">
+    <Header></Header>
+    <Resources>
+        <ResourceProxyList></ResourceProxyList>
+        <JournalFileProxyList></JournalFileProxyList>
+        <ResourceRelationList></ResourceRelationList>
+    </Resources>
+    <Components>
+        <RECOGNIZER>
+            <recognizer recognizerType="direct" 
+                runLinux="org.cherokee.elan.recognizer.CherokeeAlignerRecognizer"
+                runWin="org.cherokee.elan.recognizer.CherokeeAlignerRecognizer"
+                runMac="org.cherokee.elan.recognizer.CherokeeAlignerRecognizer"
+                info="Cherokee Forced Alignment Tool">Cherokee Forced Aligner</recognizer>
+            
+            <input level="basic" type="audio" optional="false" mimetypes="audio/x-wav audio/* video/*" info="Input audio file (WAV 16kHz mono recommended)">audio</input>
+            <input level="basic" type="tier" optional="false" mimetypes="text/plain" info="Source sentence tier to align">tier</input>
+            
+            <textparam level="basic" convoc="syllabary latin" default="syllabary" info="Cherokee orthography script type (syllabary or latin)">script_type</textparam>
+        </RECOGNIZER>
+    </Components>
+</CMD>

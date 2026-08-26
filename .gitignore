@@ -7,4 +7,5 @@ elan-plugin/lib/elan.jar
 .pytest_cache/
 __pycache__/
 *.pyc
+*.pfsx
 .DS_Store

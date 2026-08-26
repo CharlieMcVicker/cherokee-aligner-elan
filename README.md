@@ -36,7 +36,7 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-pytest tests/
+python3 -m pytest tests/
 ```
 
 Run the backend server locally:
@@ -77,7 +77,33 @@ The output fat JAR will be generated at:
 elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar
 ```
 
-Copy this JAR to your local ELAN extensions directory (e.g. `~/Library/Application Support/ELAN/extensions/` on macOS).
+### 3. Automated Install & Update Script (macOS)
+
+You can build and install/update the plugin into your local ELAN app in a single command:
+
+```bash
+./scripts/update-plugin.sh
+```
+
+*(This automatically builds the shaded jar, detects `/Applications/ELAN_*.app`, and copies all extension files into `Contents/app/extensions/cherokee-aligner-ext/`)*
+
+Or manually:
+- **macOS Application Package:**
+  ```bash
+  sudo mkdir -p /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext
+  sudo cp elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar \
+          elan-plugin/src/main/resources/cherokee-aligner.cmdi \
+          elan-plugin/src/main/resources/recognizer.cmdi \
+          /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext/
+  ```
+- **Custom / Portable ELAN directory:**
+  ```bash
+  mkdir -p <ELAN_HOME>/extensions/cherokee-aligner-ext
+  cp elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar \
+     elan-plugin/src/main/resources/cherokee-aligner.cmdi \
+     elan-plugin/src/main/resources/recognizer.cmdi \
+     <ELAN_HOME>/extensions/cherokee-aligner-ext/
+  ```
 
 ---
 

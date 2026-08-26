@@ -4,7 +4,7 @@
     {
       "label": "Build & Install Plugin to ELAN",
       "type": "shell",
-      "command": "mvn clean package && cp target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar ~/Library/Application\\ Support/ELAN/extensions/",
+      "command": "mvn clean package && mkdir -p /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext && cp target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar src/main/resources/*.cmdi /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext/",
       "options": { "cwd": "${workspaceFolder}/elan-plugin" },
       "group": { "kind": "build", "isDefault": true }
     },

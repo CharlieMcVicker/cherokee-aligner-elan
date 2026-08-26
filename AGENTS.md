@@ -7,7 +7,7 @@
 
 This project uses Backlog.md for task and project management.
 
-**For every user request in this project, run `backlog instructions overview` before answering or taking action.**
+**At the start of each request in this project, run `backlog instructions overview` before answering or taking action.**
 
 Use the overview to decide whether to search, read, create, or update Backlog tasks.
 
