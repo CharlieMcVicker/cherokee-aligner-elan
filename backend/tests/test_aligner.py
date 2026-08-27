@@ -2,8 +2,10 @@ import io
 import wave
 from unittest.mock import patch, MagicMock
 import pytest
-from app import app, normalize_audio_to_16k
+from app import app
+from model_runner import normalize_audio_to_16k
 from transcription.timestamping.aligner import AlignmentResult, VerseInterval, WordInterval
+from orthography import syllabary_to_phonetics, phonetics_to_target_script, prepare_transcript_for_alignment
 
 def make_dummy_wav(duration_ms=1000, sample_rate=44100):
     buf = io.BytesIO()
@@ -34,8 +36,23 @@ def test_normalize_audio_to_16k():
     assert audio_seg.channels == 1
     assert len(audio_seg) == 1000
 
-@patch("app.get_best_model")
-@patch("app.align_audio_segment")
+def test_orthography_helpers():
+    syllabary, phonetic = prepare_transcript_for_alignment("ᎣᏏᏲ", "syllabary")
+    assert syllabary == "ᎣᏏᏲ"
+    assert "osiyo" in phonetic.lower() or len(phonetic) > 0
+
+    phonetic_res = syllabary_to_phonetics("ᎣᏏᏲ")
+    assert len(phonetic_res) > 0
+
+    target_res = phonetics_to_target_script(phonetic_res)
+    assert target_res == phonetic_res
+
+    syllabary_raw, phonetic_raw = prepare_transcript_for_alignment("osiyo", "phonetic")
+    assert syllabary_raw == ""
+    assert phonetic_raw == "osiyo"
+
+@patch("model_runner.get_best_model")
+@patch("model_runner.align_audio_segment")
 def test_align_segment_success(mock_align, mock_get_model, client):
     mock_get_model.return_value = (MagicMock(), MagicMock(), "cpu")
     mock_alignment = AlignmentResult(
@@ -79,12 +96,12 @@ def test_align_segment_success(mock_align, mock_get_model, client):
     assert words[1]["end_ms"] == 900
     assert words[1]["confidence"] == 0.94
 
-@patch("app.get_best_model")
-@patch("app.align_audio_segment")
+@patch("model_runner.get_best_model")
+@patch("model_runner.align_audio_segment")
 def test_align_segment_fallback_uniform_slicing(mock_align, mock_get_model, client):
     mock_get_model.return_value = (MagicMock(), MagicMock(), "cpu")
     # Empty words triggers uniform fallback
-    mock_align.return_value = AlignmentResult(
+    mock_alignment = AlignmentResult(
         audio_source="test.wav",
         verses=[
             VerseInterval(
@@ -98,6 +115,7 @@ def test_align_segment_fallback_uniform_slicing(mock_align, mock_get_model, clie
             )
         ]
     )
+    mock_align.return_value = mock_alignment
     wav_buf = make_dummy_wav(duration_ms=1000)
     data = {
         "audio": (wav_buf, "segment.wav"),
@@ -118,4 +136,3 @@ def test_align_segment_fallback_uniform_slicing(mock_align, mock_get_model, clie
 def test_align_segment_missing_params(client):
     res = client.post("/v1/align/segment", data={}, content_type="multipart/form-data")
     assert res.status_code == 400
-
