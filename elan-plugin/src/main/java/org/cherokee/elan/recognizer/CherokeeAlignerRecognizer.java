@@ -295,7 +295,7 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
                 if (!isRunning) {
                     break;
                 }
-                ArrayList<RSelection> segments = inputSegmentation.getSegments();
+                List<RSelection> segments = inputSegmentation.getSegments();
                 if (segments == null) {
                     continue;
                 }

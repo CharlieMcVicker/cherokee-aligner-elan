@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-plugin:
+    name: Build & Test Plugin (ELAN ${{ matrix.elan_version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - elan_version: "6.6"
+            download_url: "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz"
+          - elan_version: "7.1"
+            download_url: "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Fetch ELAN ${{ matrix.elan_version }} reference JAR
+        run: |
+          mkdir -p elan-plugin/lib /tmp/elan-dist
+          curl -fsSL "${{ matrix.download_url }}" -o /tmp/elan_linux.tar.gz
+          tar -xzf /tmp/elan_linux.tar.gz -C /tmp/elan-dist
+          FOUND_JAR="$(find /tmp/elan-dist -iname "elan*.jar" ! -iname "*plugin*" ! -iname "*ext*" | head -n 1)"
+          if [ -n "$FOUND_JAR" ] && [ -f "$FOUND_JAR" ]; then
+            cp "$FOUND_JAR" elan-plugin/lib/elan.jar
+            echo "Successfully installed ELAN reference JAR: $FOUND_JAR"
+          else
+            echo "Failed to locate elan.jar in distribution"
+            exit 1
+          fi
+
+      - name: Build & Run Tests with Maven
+        run: |
+          cd elan-plugin
+          mvn clean test
+
+      - name: Package Plugin JAR
+        run: |
+          cd elan-plugin
+          mvn package -DskipTests
+          if [ ! -f "target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar" ]; then
+            echo "Error: Output JAR was not found at target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar"
+            exit 1
+          fi
+
+  test-backend:
+    name: Test Python Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Backend Tests with Pytest
+        run: |
+          cd backend
+          pytest tests
