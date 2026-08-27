@@ -60,6 +60,13 @@ python app.py
 *(Runs on `http://localhost:5050` by default)*
 
 #### Option B: Run via Docker
+
+**Using the Pre-Built Release Image (Recommended):**
+```bash
+docker run -p 5050:5050 ghcr.io/charliemcvicker/cherokee-aligner-backend:latest
+```
+
+**Or Build Locally:**
 ```bash
 docker build -t cherokee-aligner-backend backend/
 docker run -p 5050:5050 cherokee-aligner-backend
