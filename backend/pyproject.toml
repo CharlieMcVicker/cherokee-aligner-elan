@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cherokee-aligner-backend"
+version = "0.1.0"
+description = "Cherokee Forced-Alignment Microservice"
+requires-python = ">=3.12"
+dependencies = [
+    "Flask>=3.0.0",
+    "pytest>=8.0.0",
+    "requests>=2.31.0",
+    "workshop-transcription @ git+https://github.com/charliemcvicker/cherokee-ASR.git@main",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -8,5 +8,7 @@ elan-plugin/lib/elan.jar
 .pytest_cache/
 __pycache__/
 *.pyc
+*.egg-info/
 *.pfsx
 .DS_Store
+.ember/

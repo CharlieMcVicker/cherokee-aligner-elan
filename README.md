@@ -13,7 +13,7 @@ cherokee-aligner-elan/
 ├── backend/                  # Python/Flask forced-alignment microservice
 │   ├── app.py                # REST API adapter (/v1/align/segment)
 │   ├── Dockerfile            # Container definition
-│   ├── requirements.txt      # Python dependencies
+│   ├── pyproject.toml        # Python project metadata and dependencies
 │   └── tests/                # Pytest test suite
 ├── elan-plugin/              # Java ELAN plugin extension
 │   ├── lib/                  # Local ELAN jar reference (elan.jar)
@@ -33,9 +33,9 @@ Create a virtual environment and run the test suite:
 
 ```bash
 cd backend
-python3 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 python3 -m pytest tests/
 ```
 
