@@ -5,7 +5,10 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ELAN_PLUGIN_DIR="${REPO_DIR}/elan-plugin"
-TARGET_JAR="${ELAN_PLUGIN_DIR}/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar"
+TARGET_JAR="${ELAN_PLUGIN_DIR}/target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar"
+if [[ ! -f "${TARGET_JAR}" && -f "${ELAN_PLUGIN_DIR}/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar" ]]; then
+    TARGET_JAR="${ELAN_PLUGIN_DIR}/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar"
+fi
 CMDI_FILE1="${ELAN_PLUGIN_DIR}/src/main/resources/cherokee-aligner.cmdi"
 CMDI_FILE2="${ELAN_PLUGIN_DIR}/src/main/resources/recognizer.cmdi"
 
@@ -58,8 +61,8 @@ fi
 EXTENSIONS_DIR="${ELAN_APP}/Contents/app/extensions/cherokee-aligner-ext"
 
 echo "==> Installing plugin to: ${EXTENSIONS_DIR}"
-sudo mkdir -p "${EXTENSIONS_DIR}"
-sudo cp -f "${TARGET_JAR}" "${CMDI_FILE1}" "${CMDI_FILE2}" "${EXTENSIONS_DIR}/"
+mkdir -p "${EXTENSIONS_DIR}"
+cp -f "${TARGET_JAR}" "${CMDI_FILE1}" "${CMDI_FILE2}" "${EXTENSIONS_DIR}/"
 
 echo "==> Successfully installed Cherokee Forced-Alignment plugin to ${ELAN_APP}!"
 echo "==> Please restart ELAN to load the updated plugin."
