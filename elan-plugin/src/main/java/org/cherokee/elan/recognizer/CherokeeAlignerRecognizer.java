@@ -42,18 +42,26 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
     private RecognizerHost host;
     private List<String> mediaPaths = new ArrayList<>();
     private final Map<String, Object> parameters = new HashMap<>();
-    private final AlignmentClient alignmentClient;
+    private final AlignmentClient customAlignmentClient;
     private Thread workerThread;
     private volatile boolean isRunning = false;
     private CherokeeAlignerPanel controlPanel;
 
     public CherokeeAlignerRecognizer() {
-        this(new AlignmentClient());
+        this(null);
     }
 
     public CherokeeAlignerRecognizer(AlignmentClient alignmentClient) {
-        this.alignmentClient = alignmentClient;
+        this.customAlignmentClient = alignmentClient;
+        parameters.put("server_url", "http://localhost:5050");
         parameters.put("script_type", "syllabary");
+    }
+
+    public AlignmentClient getAlignmentClient(String serverUrl) {
+        if (this.customAlignmentClient != null) {
+            return this.customAlignmentClient;
+        }
+        return new AlignmentClient(serverUrl);
     }
 
     @Override
@@ -100,7 +108,17 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
     public JPanel getControlPanel() {
         if (controlPanel == null) {
             AbstractSelectionPanel selPanel = (host != null) ? host.getSelectionPanel(null) : null;
-            controlPanel = new CherokeeAlignerPanel(selPanel);
+            List<String> tierNames = getTranscriptionTierNames();
+            controlPanel = new CherokeeAlignerPanel(selPanel, tierNames);
+            if (parameters.containsKey("server_url")) {
+                controlPanel.setServerUrl((String) parameters.get("server_url"));
+            }
+            if (parameters.containsKey("script_type")) {
+                controlPanel.setScriptType((String) parameters.get("script_type"));
+            }
+            if (parameters.containsKey("target_tier")) {
+                controlPanel.setTargetTierName((String) parameters.get("target_tier"));
+            }
         }
         return controlPanel;
     }
@@ -109,7 +127,9 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
     public void setParameterValue(String paramName, String value) {
         parameters.put(paramName, value);
         if (controlPanel != null) {
-            if ("script_type".equals(paramName)) {
+            if ("server_url".equals(paramName)) {
+                controlPanel.setServerUrl(value);
+            } else if ("script_type".equals(paramName)) {
                 controlPanel.setScriptType(value);
             } else if ("target_tier".equals(paramName)) {
                 controlPanel.setTargetTierName(value);
@@ -125,7 +145,9 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
     @Override
     public Object getParameterValue(String paramName) {
         if (controlPanel != null) {
-            if ("script_type".equals(paramName)) {
+            if ("server_url".equals(paramName)) {
+                return controlPanel.getServerUrl();
+            } else if ("script_type".equals(paramName)) {
                 return controlPanel.getScriptType();
             } else if ("target_tier".equals(paramName)) {
                 return controlPanel.getTargetTierName();
@@ -205,9 +227,14 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
             }
 
             File audioFile = new File(mediaPaths.get(0));
+            String serverUrl = (controlPanel != null)
+                    ? controlPanel.getServerUrl()
+                    : (String) parameters.getOrDefault("server_url", "http://localhost:5050");
             String scriptType = (controlPanel != null)
                     ? controlPanel.getScriptType()
                     : (String) parameters.getOrDefault("script_type", "syllabary");
+
+            AlignmentClient client = getAlignmentClient(serverUrl);
 
             String sourceTierName = "sentences";
             List<Segmentation> segmentations = null;
@@ -288,7 +315,7 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
                     if (transcript != null && !transcript.trim().isEmpty() && (tEnd > tStart)) {
                         try {
                             byte[] audioBytes = AudioSlicer.extractSegmentToWav(audioFile, tStart, tEnd);
-                            AlignmentResponse response = alignmentClient.alignSegment(audioBytes, transcript, scriptType);
+                            AlignmentResponse response = client.alignSegment(audioBytes, transcript, scriptType);
 
                             if (response != null && "success".equalsIgnoreCase(response.getStatus()) && response.getWords() != null) {
                                 // If target tier exists in transcription, clear overlapping annotations in this interval
@@ -444,5 +471,22 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
         }
 
         return Collections.emptyList();
+    }
+
+    private List<String> getTranscriptionTierNames() {
+        List<String> tierNames = new ArrayList<>();
+        ViewerManager2 vm = extractViewerManager();
+        if (vm != null && vm.getTranscription() != null) {
+            Transcription transcription = vm.getTranscription();
+            List<? extends Tier> tiers = transcription.getTiers();
+            if (tiers != null) {
+                for (Tier tier : tiers) {
+                    if (tier != null && tier.getName() != null) {
+                        tierNames.add(tier.getName());
+                    }
+                }
+            }
+        }
+        return tierNames;
     }
 }

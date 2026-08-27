@@ -80,8 +80,14 @@ public class CherokeeAlignerRecognizerTest {
         assertTrue(panel instanceof CherokeeAlignerPanel);
 
         CherokeeAlignerPanel alignerPanel = (CherokeeAlignerPanel) panel;
+        assertEquals("http://localhost:5050", alignerPanel.getServerUrl());
         assertEquals("syllabary", alignerPanel.getScriptType());
         assertEquals("words", alignerPanel.getTargetTierName());
+        assertTrue(alignerPanel.isAutoCreateTargetTier());
+
+        recognizer.setParameterValue("server_url", "https://align.example.com:8080");
+        assertEquals("https://align.example.com:8080", alignerPanel.getServerUrl());
+        assertEquals("https://align.example.com:8080", recognizer.getParameterValue("server_url"));
 
         recognizer.setParameterValue("script_type", "latin");
         assertEquals("latin", alignerPanel.getScriptType());
@@ -90,17 +96,72 @@ public class CherokeeAlignerRecognizerTest {
         recognizer.setParameterValue("target_tier", "my_words");
         assertEquals("my_words", alignerPanel.getTargetTierName());
         assertEquals("my_words", recognizer.getParameterValue("target_tier"));
+        assertFalse(alignerPanel.isAutoCreateTargetTier());
 
         Map<String, Object> prefs = alignerPanel.getParamPreferences();
+        assertEquals("https://align.example.com:8080", prefs.get("server_url"));
         assertEquals("latin", prefs.get("script_type"));
         assertEquals("my_words", prefs.get("target_tier"));
 
         Map<String, Object> newPrefs = new HashMap<>();
+        newPrefs.put("server_url", "http://127.0.0.1:5050");
         newPrefs.put("script_type", "syllabary");
         newPrefs.put("target_tier", "custom_words");
         alignerPanel.setParamPreferences(newPrefs);
+        assertEquals("http://127.0.0.1:5050", alignerPanel.getServerUrl());
         assertEquals("syllabary", alignerPanel.getScriptType());
         assertEquals("custom_words", alignerPanel.getTargetTierName());
+    }
+
+    @Test
+    void testServerUrlValidation() {
+        CherokeeAlignerPanel panel = new CherokeeAlignerPanel(null);
+        panel.setServerUrl("http://localhost:5050");
+        assertDoesNotThrow(panel::validateServerUrl);
+
+        panel.setServerUrl("https://server.domain.org:8443");
+        assertDoesNotThrow(panel::validateServerUrl);
+
+        // Invalid: empty
+        panel.setServerUrl("");
+        assertThrows(RecognizerConfigurationException.class, panel::validateServerUrl);
+
+        // Invalid scheme
+        panel.setServerUrl("ftp://localhost:5050");
+        assertThrows(RecognizerConfigurationException.class, panel::validateServerUrl);
+
+        // Invalid scheme missing http/https
+        panel.setServerUrl("localhost:5050");
+        assertThrows(RecognizerConfigurationException.class, panel::validateServerUrl);
+
+        // Invalid port
+        panel.setServerUrl("http://localhost:99999");
+        assertThrows(RecognizerConfigurationException.class, panel::validateServerUrl);
+    }
+
+    @Test
+    void testTargetTierDropdown() {
+        List<String> availableTiers = List.of("sentences", "notes", "words");
+        CherokeeAlignerPanel panel = new CherokeeAlignerPanel(null, availableTiers);
+
+        // Default auto-create option
+        assertEquals("words", panel.getTargetTierName());
+        assertTrue(panel.isAutoCreateTargetTier());
+
+        // Select existing tier
+        panel.setTargetTierName("sentences");
+        assertEquals("sentences", panel.getTargetTierName());
+        assertFalse(panel.isAutoCreateTargetTier());
+
+        // Select non-existing tier dynamically
+        panel.setTargetTierName("new_tier");
+        assertEquals("new_tier", panel.getTargetTierName());
+
+        // Update available tiers
+        panel.updateAvailableTiers(List.of("speaker1", "speaker2"));
+        panel.setTargetTierName("[Auto-create: words]");
+        assertEquals("words", panel.getTargetTierName());
+        assertTrue(panel.isAutoCreateTargetTier());
     }
 
     @Test

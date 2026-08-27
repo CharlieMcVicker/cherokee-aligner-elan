@@ -26,6 +26,10 @@ public class AlignmentClient {
             : backendBaseUrl;
     }
 
+    public String getBackendBaseUrl() {
+        return backendBaseUrl;
+    }
+
     public AlignmentResponse alignSegment(byte[] wavBytes, String transcript, String scriptType) throws IOException {
         String endpoint = backendBaseUrl + "/v1/align/segment";
         

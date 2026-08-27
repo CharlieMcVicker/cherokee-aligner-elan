@@ -2,6 +2,7 @@ backend/venv/
 
 # Build targets & caches
 elan-plugin/target/
+elan-plugin/target-out/
 elan-plugin/dependency-reduced-pom.xml
 elan-plugin/lib/elan.jar
 .pytest_cache/

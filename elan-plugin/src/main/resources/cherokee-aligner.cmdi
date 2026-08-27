@@ -19,6 +19,7 @@
             <input level="basic" type="audio" optional="false" mimetypes="audio/x-wav audio/* video/*" info="Input audio file (WAV 16kHz mono recommended)">audio</input>
             <input level="basic" type="tier" optional="false" mimetypes="text/plain" info="Source sentence tier to align">tier</input>
             
+            <textparam level="basic" default="http://localhost:5050" info="Cherokee alignment server URL (e.g. http://localhost:5050)">server_url</textparam>
             <textparam level="basic" convoc="syllabary latin" default="syllabary" info="Cherokee orthography script type (syllabary or latin)">script_type</textparam>
         </RECOGNIZER>
     </Components>
