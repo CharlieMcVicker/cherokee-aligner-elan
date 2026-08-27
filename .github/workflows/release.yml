@@ -28,7 +28,7 @@ jobs:
       - name: Build Plugin for ELAN 6.6
         run: |
           mkdir -p elan-plugin/lib /tmp/elan-dist-6 dist
-          curl -fsSL "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz" -o /tmp/elan_6_6.tar.gz
+          curl -fsSL --retry 3 --retry-delay 2 "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz" -o /tmp/elan_6_6.tar.gz
           tar -xzf /tmp/elan_6_6.tar.gz -C /tmp/elan-dist-6
           FOUND_JAR="$(find /tmp/elan-dist-6 -iname "elan*.jar" ! -iname "*plugin*" ! -iname "*ext*" | head -n 1)"
           cp "$FOUND_JAR" elan-plugin/lib/elan.jar
@@ -40,7 +40,7 @@ jobs:
         run: |
           rm -f elan-plugin/lib/elan.jar
           mkdir -p /tmp/elan-dist-7 dist
-          curl -fsSL "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz" -o /tmp/elan_7_1.tar.gz
+          curl -fsSL --retry 3 --retry-delay 2 "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz" -o /tmp/elan_7_1.tar.gz
           tar -xzf /tmp/elan_7_1.tar.gz -C /tmp/elan-dist-7
           FOUND_JAR="$(find /tmp/elan-dist-7 -iname "elan*.jar" ! -iname "*plugin*" ! -iname "*ext*" | head -n 1)"
           cp "$FOUND_JAR" elan-plugin/lib/elan.jar

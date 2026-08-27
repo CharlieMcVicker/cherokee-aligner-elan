@@ -31,10 +31,18 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
+      - name: Cache ELAN ${{ matrix.elan_version }} Reference JAR
+        id: cache-elan
+        uses: actions/cache@v4
+        with:
+          path: elan-plugin/lib/elan.jar
+          key: elan-jar-${{ matrix.elan_version }}-v1
+
       - name: Fetch ELAN ${{ matrix.elan_version }} reference JAR
+        if: steps.cache-elan.outputs.cache-hit != 'true'
         run: |
           mkdir -p elan-plugin/lib /tmp/elan-dist
-          curl -fsSL "${{ matrix.download_url }}" -o /tmp/elan_linux.tar.gz
+          curl -fsSL --retry 3 --retry-delay 2 "${{ matrix.download_url }}" -o /tmp/elan_linux.tar.gz
           tar -xzf /tmp/elan_linux.tar.gz -C /tmp/elan-dist
           FOUND_JAR="$(find /tmp/elan-dist -iname "elan*.jar" ! -iname "*plugin*" ! -iname "*ext*" | head -n 1)"
           if [ -n "$FOUND_JAR" ] && [ -f "$FOUND_JAR" ]; then
@@ -59,12 +67,17 @@ jobs:
             exit 1
           fi
 
-  test-backend:
+    test-backend:
     name: Test Python Backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
