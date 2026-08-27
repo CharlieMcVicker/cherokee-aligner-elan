@@ -25,11 +25,24 @@ cherokee-aligner-elan/
 
 ---
 
-## Quickstart & Development
+## Prerequisites & System Requirements
+
+### macOS / Linux Tools
+- **Python 3.12+** (`brew install python@3.12`)
+- **FFmpeg** (`brew install ffmpeg`) – required for audio segment resampling and decoding
+- **Java JDK 17+** (`brew install openjdk@17`) – only required if compiling the ELAN plugin from source
+- **Apache Maven 3.9+** (`brew install maven`) – only required if compiling from source
+- **ELAN (6.x or newer)** installed on your machine (e.g. `/Applications/ELAN_6.6.app`)
+- **Docker** (optional, for containerized backend execution)
+
+---
+
+## Quickstart & Setup
 
 ### 1. Backend Service (Python)
 
-Create a virtual environment and run the test suite:
+#### Option A: Local Python Environment
+Create a virtual environment with Python 3.12 and install backend dependencies:
 
 ```bash
 cd backend
@@ -44,66 +57,76 @@ Run the backend server locally:
 ```bash
 python app.py
 ```
+*(Runs on `http://localhost:5050` by default)*
 
-Or build and run via Docker:
-
+#### Option B: Run via Docker
 ```bash
 docker build -t cherokee-aligner-backend backend/
 docker run -p 5050:5050 cherokee-aligner-backend
 ```
 
-### 2. ELAN Plugin (Java)
+---
 
-Prerequisites:
-- Java 17+
-- Maven 3.9+
-- Local ELAN installation (`elan-plugin/lib/elan.jar`)
+### 2. ELAN Plugin Installation
 
-Build and run tests:
+ELAN on macOS loads extensions directly from its application package:
+`/Applications/ELAN_<version>.app/Contents/app/extensions/cherokee-aligner-ext/`
 
-```bash
-cd elan-plugin
-mvn test
-```
-
-Package the shaded uber JAR:
+#### Method 1: Install Pre-Built Plugin (No Maven required)
+If you already have the compiled `.jar` artifact (or downloaded a release):
 
 ```bash
-mvn clean package
+./scripts/install.sh
+```
+*You can also supply an explicit ELAN app or JAR path:*
+```bash
+./scripts/install.sh /Applications/ELAN_6.8.app path/to/cherokee-aligner-plugin.jar
 ```
 
-The output fat JAR will be generated at:
-```
-elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar
-```
-
-### 3. Automated Install & Update Script (macOS)
-
-You can build and install/update the plugin into your local ELAN app in a single command:
+#### Method 2: Build from Source Only (No install)
+To compile the shaded uber JAR without installing it into ELAN:
 
 ```bash
-./scripts/update-plugin.sh
+./scripts/build.sh
 ```
 
-*(This automatically builds the shaded jar, detects `/Applications/ELAN_*.app`, and copies all extension files into `Contents/app/extensions/cherokee-aligner-ext/`)*
+#### Method 3: Build from Source & Install in One Step
+If you have JDK 17+ and Maven installed:
 
-Or manually:
-- **macOS Application Package:**
+```bash
+./scripts/build-and-install.sh
+```
+*(This automatically links `elan.jar`, compiles the shaded uber JAR with Maven via `build.sh`, and installs the plugin and `.cmdi` descriptors into your ELAN application bundle via `install.sh`)*
+
+#### Method 4: Manual Installation
+Copy the JAR and `.cmdi` files directly into ELAN's extension directory:
+```bash
+mkdir -p /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext
+cp elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar \
+   elan-plugin/src/main/resources/cherokee-aligner.cmdi \
+   elan-plugin/src/main/resources/recognizer.cmdi \
+   /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext/
+```
+
+---
+
+## macOS Troubleshooting & Notes
+
+* **Permission Denied / Ownership Issues:**
+  If copying files into `/Applications/ELAN_*.app` fails with permission errors, it is usually because ELAN was installed by a different user account or was previously modified using `sudo`. Fix ownership of the app bundle:
   ```bash
-  sudo mkdir -p /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext
-  sudo cp elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar \
-          elan-plugin/src/main/resources/cherokee-aligner.cmdi \
-          elan-plugin/src/main/resources/recognizer.cmdi \
-          /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext/
+  sudo chown -R $(whoami) /Applications/ELAN_*.app
   ```
-- **Custom / Portable ELAN directory:**
-  ```bash
-  mkdir -p <ELAN_HOME>/extensions/cherokee-aligner-ext
-  cp elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar \
-     elan-plugin/src/main/resources/cherokee-aligner.cmdi \
-     elan-plugin/src/main/resources/recognizer.cmdi \
-     <ELAN_HOME>/extensions/cherokee-aligner-ext/
-  ```
+  *(Avoid running the install scripts with `sudo` directly so that file ownership remains with your standard user account.)*
+
+* **App Management Permissions (macOS Ventura/Sonoma/Sequoia):**
+  If macOS restricts terminal scripts from modifying files inside `/Applications`, ensure your terminal application (Terminal, iTerm2, VS Code) has **App Management** permission enabled in **System Settings > Privacy & Security > App Management**.
+
+* **Supported Audio Formats in ELAN:**
+  ELAN's Java audio engine natively slices uncompressed **16-bit PCM WAV** audio files. When creating or annotating transcripts in ELAN, ensure your media files are standard WAV files or have linked WAV audio.
+
+* **Docker Desktop Memory on macOS:**
+  The Cherokee alignment model uses PyTorch and HuggingFace transformer models. When running via Docker Desktop on macOS, ensure Docker has at least **4 GB to 6 GB** of allocated memory in Docker settings to avoid container out-of-memory (OOM) errors.
 
 ---
 

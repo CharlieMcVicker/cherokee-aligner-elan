@@ -1,0 +1,12 @@
+venv/
+.venv/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.git/
+.vscode/
+.ember/
+elan-plugin/
+test-data/
+backlog/
+.DS_Store
