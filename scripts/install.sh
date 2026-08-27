@@ -13,17 +13,25 @@ CUSTOM_JAR_ARG="${2:-}"
 
 # 1. Locate ELAN Application Bundle
 ELAN_APP="$(find_elan_app "${ELAN_APP_ARG}")"
+if [[ ! -d "${ELAN_APP}" ]]; then
+    echo "Error: Target ELAN installation must be a valid directory (.app): ${ELAN_APP}" >&2
+    exit 1
+fi
 echo "==> Target ELAN installation: ${ELAN_APP}"
+
+# Detect ELAN major version of target application
+TARGET_VERSION="$(detect_elan_version "${ELAN_APP}")"
+echo "==> Detected ELAN version for target: ${TARGET_VERSION}"
 
 # 2. Locate Plugin JAR
 PLUGIN_JAR="${CUSTOM_JAR_ARG}"
 if [[ -z "${PLUGIN_JAR}" ]]; then
-    PLUGIN_JAR="$(find_built_jar)"
+    PLUGIN_JAR="$(find_built_jar "${TARGET_VERSION}")"
 fi
 
 if [[ -z "${PLUGIN_JAR}" || ! -f "${PLUGIN_JAR}" ]]; then
-    echo "Error: Plugin JAR not found." >&2
-    echo "To build from source and install, run: ./scripts/build-and-install.sh" >&2
+    echo "Error: Plugin JAR not found for ELAN ${TARGET_VERSION}." >&2
+    echo "To build from source and install, run: ./scripts/build.sh --elan ${TARGET_VERSION}" >&2
     echo "Or supply the path to a pre-built JAR: $0 [ELAN.app] [/path/to/plugin.jar]" >&2
     exit 1
 fi

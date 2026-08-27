@@ -12,3 +12,5 @@ __pycache__/
 *.pfsx
 .DS_Store
 .ember/
+.elan-cache/
+dist/
