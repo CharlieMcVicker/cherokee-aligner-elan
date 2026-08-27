@@ -21,7 +21,9 @@ COPY . .
 
 # Pre-download and cache model weights so image is self-contained and offline-ready
 ENV HF_HOME="/root/.cache/huggingface"
-RUN python download_model.py
+ENV PYTHONPATH="/app/src"
+RUN python src/download_model.py
 
 EXPOSE 5050
-CMD ["python", "app.py"]
+CMD ["python", "src/app.py"]
+
