@@ -36,6 +36,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/cherokee-aligner-backend
+          flavor: |
+            latest=false
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
@@ -55,12 +57,15 @@ jobs:
           docker run --rm cherokee-aligner:test pytest tests
 
       - name: Push Tested Docker Image to GHCR
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          for tag in ${{ steps.meta.outputs.tags }}; do
+          while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
             echo "Tagging and pushing $tag..."
             docker tag cherokee-aligner:test "$tag"
             docker push "$tag"
-          done
+          done <<< "$TAGS"
 
   build-plugin:
     name: Build Plugin (ELAN ${{ matrix.elan_version }})
