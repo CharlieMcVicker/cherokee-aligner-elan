@@ -17,18 +17,20 @@ jobs:
       matrix:
         include:
           - elan_version: "6.6"
+            java_version: "17"
             download_url: "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz"
           - elan_version: "7.1"
+            java_version: "21"
             download_url: "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java ${{ matrix.java_version }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: ${{ matrix.java_version }}
           cache: 'maven'
 
       - name: Cache ELAN ${{ matrix.elan_version }} Reference JAR
@@ -36,10 +38,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: elan-plugin/lib/elan.jar
-          key: elan-jar-${{ matrix.elan_version }}-v1
+          key: elan-jar-${{ matrix.elan_version }}-v2
 
       - name: Fetch ELAN ${{ matrix.elan_version }} reference JAR
-        if: steps.cache-elan.outputs.cache-hit != 'true'
+        if: steps.cache-elan.outputs.cache-hit != 'true' || hashFiles('elan-plugin/lib/elan.jar') == ''
         run: |
           mkdir -p elan-plugin/lib /tmp/elan-dist
           curl -fsSL --retry 3 --retry-delay 2 "${{ matrix.download_url }}" -o /tmp/elan_linux.tar.gz
