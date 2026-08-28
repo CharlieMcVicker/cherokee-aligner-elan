@@ -11,58 +11,135 @@ permissions:
   packages: write
 
 jobs:
-  build-and-release-plugin:
-    name: Build & Release ELAN Plugin
+  test-backend:
+    name: Test Python Backend (Docker)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Build Docker image
+        run: |
+          cd backend
+          docker build -t cherokee-aligner:test .
+
+      - name: Run Backend Tests in Container
+        run: |
+          docker run --rm cherokee-aligner:test pytest tests
+
+  build-plugin:
+    name: Build Plugin (ELAN ${{ matrix.elan_version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - elan_version: "6.6"
+            elan_tag: "elan6"
+            java_version: "17"
+            download_url: "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz"
+            is_default: true
+          - elan_version: "7.1"
+            elan_tag: "elan7"
+            java_version: "21"
+            download_url: "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz"
+            is_default: false
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ matrix.java_version }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: ${{ matrix.java_version }}
           cache: 'maven'
 
-      - name: Build Plugin for ELAN 6.6
-        run: |
-          mkdir -p elan-plugin/lib /tmp/elan-dist-6 dist
-          curl -fsSL --retry 3 --retry-delay 2 "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz" -o /tmp/elan_6_6.tar.gz
-          tar -xzf /tmp/elan_6_6.tar.gz -C /tmp/elan-dist-6
-          FOUND_JAR="$(find /tmp/elan-dist-6 -iname "elan*.jar" ! -iname "*plugin*" ! -iname "*ext*" | head -n 1)"
-          cp "$FOUND_JAR" elan-plugin/lib/elan.jar
-          (cd elan-plugin && mvn clean package -DskipTests)
-          cp elan-plugin/target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar dist/cherokee-aligner-plugin-elan6-1.0.0-SNAPSHOT.jar
-          cp elan-plugin/target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar dist/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar
+      - name: Cache ELAN ${{ matrix.elan_version }} Reference JAR
+        id: cache-elan
+        uses: actions/cache@v4
+        with:
+          path: elan-plugin/lib/elan.jar
+          key: elan-jar-${{ matrix.elan_version }}-v2
 
-      - name: Build Plugin for ELAN 7.1
+      - name: Fetch ELAN ${{ matrix.elan_version }} reference JAR
+        if: steps.cache-elan.outputs.cache-hit != 'true' || hashFiles('elan-plugin/lib/elan.jar') == ''
         run: |
-          rm -f elan-plugin/lib/elan.jar
-          mkdir -p /tmp/elan-dist-7 dist
-          curl -fsSL --retry 3 --retry-delay 2 "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz" -o /tmp/elan_7_1.tar.gz
-          tar -xzf /tmp/elan_7_1.tar.gz -C /tmp/elan-dist-7
-          FOUND_JAR="$(find /tmp/elan-dist-7 -iname "elan*.jar" ! -iname "*plugin*" ! -iname "*ext*" | head -n 1)"
-          cp "$FOUND_JAR" elan-plugin/lib/elan.jar
-          (cd elan-plugin && mvn clean package -DskipTests)
-          cp elan-plugin/target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar dist/cherokee-aligner-plugin-elan7-1.0.0-SNAPSHOT.jar
+          mkdir -p elan-plugin/lib /tmp/elan-dist
+          curl -fsSL --retry 3 --retry-delay 2 "${{ matrix.download_url }}" -o /tmp/elan_linux.tar.gz
+          tar -xzf /tmp/elan_linux.tar.gz -C /tmp/elan-dist
+          FOUND_JAR="$(find /tmp/elan-dist -iname "elan*.jar" ! -iname "*plugin*" ! -iname "*ext*" | head -n 1)"
+          if [ -n "$FOUND_JAR" ] && [ -f "$FOUND_JAR" ]; then
+            cp "$FOUND_JAR" elan-plugin/lib/elan.jar
+            echo "Successfully installed ELAN reference JAR: $FOUND_JAR"
+          else
+            echo "Failed to locate elan.jar in distribution"
+            exit 1
+          fi
+
+      - name: Run Tests with Maven
+        run: |
+          cd elan-plugin
+          mvn clean test
+
+      - name: Package Plugin with Dynamic Version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="1.0.0"
+          fi
+          echo "Packaging plugin version $VERSION for ELAN ${{ matrix.elan_version }}"
+          mkdir -p dist
+          cd elan-plugin
+          mvn clean package -DskipTests
+          BUILT_JAR="$(find target-out -name "cherokee-aligner-plugin-*.jar" ! -name "original-*" | head -n 1)"
+          if [ -z "$BUILT_JAR" ] || [ ! -f "$BUILT_JAR" ]; then
+            echo "Error: Built JAR not found in target-out"
+            exit 1
+          fi
+          cp "$BUILT_JAR" "../dist/cherokee-aligner-plugin-${{ matrix.elan_tag }}-${VERSION}.jar"
+          if [ "${{ matrix.is_default }}" = "true" ]; then
+            cp "$BUILT_JAR" "../dist/cherokee-aligner-plugin-${VERSION}.jar"
+          fi
+
+      - name: Upload Plugin Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-${{ matrix.elan_tag }}
+          path: dist/*.jar
+          retention-days: 1
+
+  release-github:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-plugin, test-backend]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Built Plugin Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/cherokee-aligner-plugin-elan6-1.0.0-SNAPSHOT.jar
-            dist/cherokee-aligner-plugin-elan7-1.0.0-SNAPSHOT.jar
-            dist/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar
+            dist/*.jar
             elan-plugin/src/main/resources/cherokee-aligner.cmdi
             elan-plugin/src/main/resources/recognizer.cmdi
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-and-push-docker:
+  publish-docker:
     name: Build & Publish Docker Backend
     runs-on: ubuntu-latest
+    needs: [test-backend]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

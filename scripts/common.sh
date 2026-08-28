@@ -181,34 +181,37 @@ find_built_jar() {
     local requested_version="${1:-}"
 
     if [[ "${requested_version}" =~ 6 ]]; then
-        for path in \
-            "${DIST_DIR}/cherokee-aligner-plugin-elan6-1.0.0-SNAPSHOT.jar" \
-            "${ELAN_PLUGIN_DIR}/target-out/cherokee-aligner-plugin-elan6-1.0.0-SNAPSHOT.jar" \
-            "${ELAN_PLUGIN_DIR}/target/cherokee-aligner-plugin-elan6-1.0.0-SNAPSHOT.jar"; do
-            if [[ -f "${path}" ]]; then
-                echo "${path}"
-                return 0
+        for search_dir in "${DIST_DIR}" "${ELAN_PLUGIN_DIR}/target-out" "${ELAN_PLUGIN_DIR}/target"; do
+            if [[ -d "${search_dir}" ]]; then
+                local found
+                found="$(find "${search_dir}" -maxdepth 1 -name "cherokee-aligner-plugin-elan6-*.jar" ! -name "original-*" 2>/dev/null | sort -V | tail -n 1 || true)"
+                if [[ -n "${found}" && -f "${found}" ]]; then
+                    echo "${found}"
+                    return 0
+                fi
             fi
         done
     elif [[ "${requested_version}" =~ 7 ]]; then
-        for path in \
-            "${DIST_DIR}/cherokee-aligner-plugin-elan7-1.0.0-SNAPSHOT.jar" \
-            "${ELAN_PLUGIN_DIR}/target-out/cherokee-aligner-plugin-elan7-1.0.0-SNAPSHOT.jar" \
-            "${ELAN_PLUGIN_DIR}/target/cherokee-aligner-plugin-elan7-1.0.0-SNAPSHOT.jar"; do
-            if [[ -f "${path}" ]]; then
-                echo "${path}"
-                return 0
+        for search_dir in "${DIST_DIR}" "${ELAN_PLUGIN_DIR}/target-out" "${ELAN_PLUGIN_DIR}/target"; do
+            if [[ -d "${search_dir}" ]]; then
+                local found
+                found="$(find "${search_dir}" -maxdepth 1 -name "cherokee-aligner-plugin-elan7-*.jar" ! -name "original-*" 2>/dev/null | sort -V | tail -n 1 || true)"
+                if [[ -n "${found}" && -f "${found}" ]]; then
+                    echo "${found}"
+                    return 0
+                fi
             fi
         done
     fi
 
-    for path in \
-        "${DIST_DIR}/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar" \
-        "${ELAN_PLUGIN_DIR}/target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar" \
-        "${ELAN_PLUGIN_DIR}/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar"; do
-        if [[ -f "${path}" ]]; then
-            echo "${path}"
-            return 0
+    for search_dir in "${DIST_DIR}" "${ELAN_PLUGIN_DIR}/target-out" "${ELAN_PLUGIN_DIR}/target"; do
+        if [[ -d "${search_dir}" ]]; then
+            local fallback
+            fallback="$(find "${search_dir}" -maxdepth 1 -name "cherokee-aligner-plugin-*.jar" ! -name "original-*" 2>/dev/null | sort -V | tail -n 1 || true)"
+            if [[ -n "${fallback}" && -f "${fallback}" ]]; then
+                echo "${fallback}"
+                return 0
+            fi
         fi
     done
 
