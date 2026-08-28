@@ -25,7 +25,6 @@ import java.util.ResourceBundle;
 public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
 
     private static final String DEFAULT_SERVER_URL = "http://localhost:5050";
-    private static final String AUTO_CREATE_WORDS = "[Auto-create: words]";
 
     private final AbstractSelectionPanel selectionPanel;
     private JTextField serverUrlField;
@@ -144,25 +143,9 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
 
     public String getTargetTierName() {
         if (targetTierCombo != null && targetTierCombo.getSelectedItem() != null) {
-            String selected = ((String) targetTierCombo.getSelectedItem()).trim();
-            if (selected.startsWith("[") && selected.endsWith("]")) {
-                int colonIdx = selected.indexOf(':');
-                if (colonIdx != -1) {
-                    return selected.substring(colonIdx + 1, selected.length() - 1).trim();
-                }
-                return "words";
-            }
-            return selected;
+            return ((String) targetTierCombo.getSelectedItem()).trim();
         }
-        return "words";
-    }
-
-    public boolean isAutoCreateTargetTier() {
-        if (targetTierCombo != null && targetTierCombo.getSelectedItem() != null) {
-            String selected = ((String) targetTierCombo.getSelectedItem()).trim();
-            return selected.startsWith("[") && selected.endsWith("]");
-        }
-        return false;
+        return null;
     }
 
     public void setTargetTierName(String tierName) {
@@ -174,14 +157,7 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
                     targetTierCombo.setSelectedIndex(i);
                     return;
                 }
-                if (item.startsWith("[") && item.toLowerCase().contains(cleanName.toLowerCase())) {
-                    targetTierCombo.setSelectedIndex(i);
-                    return;
-                }
             }
-            // If custom tier name not found in list, append it and select
-            targetTierCombo.addItem(cleanName);
-            targetTierCombo.setSelectedItem(cleanName);
         }
     }
 
@@ -194,11 +170,10 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
                 : null;
 
         targetTierCombo.removeAllItems();
-        targetTierCombo.addItem(AUTO_CREATE_WORDS);
 
         if (tierNames != null) {
             for (String tier : tierNames) {
-                if (tier != null && !tier.trim().isEmpty() && !tier.startsWith("[")) {
+                if (tier != null && !tier.trim().isEmpty()) {
                     String clean = tier.trim();
                     boolean exists = false;
                     for (int i = 0; i < targetTierCombo.getItemCount(); i++) {
@@ -214,10 +189,32 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
             }
         }
 
-        if (currentSelection != null) {
-            setTargetTierName(currentSelection);
-        } else {
-            targetTierCombo.setSelectedIndex(0);
+        if (targetTierCombo.getItemCount() > 0) {
+            boolean selected = false;
+            if (currentSelection != null) {
+                for (int i = 0; i < targetTierCombo.getItemCount(); i++) {
+                    if (targetTierCombo.getItemAt(i).equalsIgnoreCase(currentSelection.trim())) {
+                        targetTierCombo.setSelectedIndex(i);
+                        selected = true;
+                        break;
+                    }
+                }
+            }
+            if (!selected) {
+                // Default to "words" if present, else first available tier
+                int wordsIndex = -1;
+                for (int i = 0; i < targetTierCombo.getItemCount(); i++) {
+                    if ("words".equalsIgnoreCase(targetTierCombo.getItemAt(i))) {
+                        wordsIndex = i;
+                        break;
+                    }
+                }
+                if (wordsIndex != -1) {
+                    targetTierCombo.setSelectedIndex(wordsIndex);
+                } else {
+                    targetTierCombo.setSelectedIndex(0);
+                }
+            }
         }
     }
 
@@ -266,8 +263,12 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
             Object val = selectionPanel.getSelectionValue();
             Map<String, Object> paramMap = selectionPanel.getParamValue();
             if (val == null && (paramMap == null || paramMap.isEmpty())) {
-                throw new RecognizerConfigurationException("Please select a source tier or annotation selection.");
+                throw new RecognizerConfigurationException("Please select a source tier.");
             }
+        }
+        String targetTier = getTargetTierName();
+        if (targetTier == null || targetTier.trim().isEmpty()) {
+            throw new RecognizerConfigurationException("Please select a valid target tier from the transcription.");
         }
     }
 
@@ -288,7 +289,9 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
         Map<String, Object> prefs = new HashMap<>();
         prefs.put("server_url", getServerUrl());
         prefs.put("script_type", getScriptType());
-        prefs.put("target_tier", getTargetTierName());
+        if (getTargetTierName() != null) {
+            prefs.put("target_tier", getTargetTierName());
+        }
         if (selectionPanel != null) {
             selectionPanel.getStorableParamPreferencesMap(prefs);
         }

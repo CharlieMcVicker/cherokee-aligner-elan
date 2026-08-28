@@ -253,10 +253,10 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
                 sourceTierName = segmentations.get(0).getName().trim();
             }
 
-            // Determine target tier name (default: "words")
+            // Determine target tier name
             String targetTierName = (controlPanel != null)
                     ? controlPanel.getTargetTierName()
-                    : "words";
+                    : null;
             if (parameters.containsKey("target_tier")) {
                 List<Segmentation> targetSegs = loadSegmentationsFromObject(parameters.get("target_tier"));
                 if (targetSegs != null && !targetSegs.isEmpty() && targetSegs.get(0).getName() != null && !targetSegs.get(0).getName().trim().isEmpty()) {
@@ -267,16 +267,9 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
                         targetTierName = str.trim();
                     }
                 }
-            } else if (sourceTierName != null && !sourceTierName.equalsIgnoreCase("sentences") && (controlPanel == null || "words".equals(controlPanel.getTargetTierName()))) {
-                targetTierName = sourceTierName + "_words";
             }
-
-            ArrayList<RSelection> outputWords = new ArrayList<>();
-            int totalSegs = 0;
-            for (Segmentation seg : segmentations) {
-                if (seg.getSegments() != null) {
-                    totalSegs += seg.getSegments().size();
-                }
+            if (targetTierName == null || targetTierName.trim().isEmpty()) {
+                targetTierName = "words";
             }
 
             ViewerManager2 vm = extractViewerManager();
@@ -285,7 +278,16 @@ public class CherokeeAlignerRecognizer implements Recognizer, Runnable {
             if (transcription != null) {
                 targetTier = transcription.getTierWithId(targetTierName);
                 if (targetTier == null) {
-                    targetTier = transcription.getTierWithId("words");
+                    host.errorOccurred("Target tier '" + targetTierName + "' does not exist in the transcription.");
+                    return;
+                }
+            }
+
+            ArrayList<RSelection> outputWords = new ArrayList<>();
+            int totalSegs = 0;
+            for (Segmentation seg : segmentations) {
+                if (seg.getSegments() != null) {
+                    totalSegs += seg.getSegments().size();
                 }
             }
 
