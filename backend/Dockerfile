@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir .
+RUN mkdir -p src && pip install --no-cache-dir .
 
 # Revision hash for workshop-transcription (update this variable to bust cache & rebuild dep)
 ENV TRANSCRIPTION_REVISION="44a503a544ef7338981ab0d75235005d9d1db943"
