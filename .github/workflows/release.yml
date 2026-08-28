@@ -11,21 +11,56 @@ permissions:
   packages: write
 
 jobs:
-  test-backend:
-    name: Test Python Backend (Docker)
+  build-test-publish-backend:
+    name: Build, Test & Publish Docker Backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: |
-          cd backend
-          docker build -t cherokee-aligner:test .
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Run Backend Tests in Container
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/cherokee-aligner-backend
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+
+      - name: Build Docker image for Testing
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          load: true
+          tags: cherokee-aligner:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Backend Tests in Built Image
         run: |
           docker run --rm cherokee-aligner:test pytest tests
+
+      - name: Push Tested Docker Image to GHCR
+        run: |
+          for tag in ${{ steps.meta.outputs.tags }}; do
+            echo "Tagging and pushing $tag..."
+            docker tag cherokee-aligner:test "$tag"
+            docker push "$tag"
+          done
 
   build-plugin:
     name: Build Plugin (ELAN ${{ matrix.elan_version }})
@@ -35,11 +70,13 @@ jobs:
         include:
           - elan_version: "6.6"
             elan_tag: "elan6"
+            elan_major: "6"
             java_version: "17"
             download_url: "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz"
             is_default: true
           - elan_version: "7.1"
             elan_tag: "elan7"
+            elan_major: "7"
             java_version: "21"
             download_url: "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz"
             is_default: false
@@ -81,7 +118,7 @@ jobs:
           cd elan-plugin
           mvn clean test
 
-      - name: Package Plugin with Dynamic Version
+      - name: Package Plugin Zip with Dynamic Version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
@@ -99,27 +136,40 @@ jobs:
             echo "Error: Built JAR not found in target-out"
             exit 1
           fi
-          cp "$BUILT_JAR" "../dist/cherokee-aligner-plugin-${{ matrix.elan_tag }}-${VERSION}.jar"
-          if [ "${{ matrix.is_default }}" = "true" ]; then
-            cp "$BUILT_JAR" "../dist/cherokee-aligner-plugin-${VERSION}.jar"
-          fi
+          
+          # Stage zip contents: jar + cherokee-aligner.cmdi + recognizer.cmdi
+          STAGING_DIR="/tmp/elan-release-staging-${{ matrix.elan_major }}"
+          rm -rf "$STAGING_DIR"
+          mkdir -p "$STAGING_DIR"
+          
+          JAR_TARGET_NAME="cherokee-aligner-plugin-${{ matrix.elan_tag }}-${VERSION}.jar"
+          cp "$BUILT_JAR" "$STAGING_DIR/${JAR_TARGET_NAME}"
+          cp src/main/resources/cherokee-aligner.cmdi "$STAGING_DIR/"
+          cp src/main/resources/recognizer.cmdi "$STAGING_DIR/"
+          
+          ZIP_NAME="cherokee-aligner-elan-${{ matrix.elan_major }}.zip"
+          (cd "$STAGING_DIR" && zip -r "../../dist/${ZIP_NAME}" .)
+          rm -rf "$STAGING_DIR"
+          
+          echo "Verifying contents of dist/${ZIP_NAME}:"
+          unzip -l "../dist/${ZIP_NAME}"
 
-      - name: Upload Plugin Artifact
+      - name: Upload Plugin Zip Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: plugin-${{ matrix.elan_tag }}
-          path: dist/*.jar
+          name: plugin-zip-elan-${{ matrix.elan_major }}
+          path: dist/cherokee-aligner-elan-${{ matrix.elan_major }}.zip
           retention-days: 1
 
   release-github:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-plugin, test-backend]
+    needs: [build-plugin, build-test-publish-backend]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Download Built Plugin Artifacts
+      - name: Download Built Plugin Zip Artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
@@ -129,50 +179,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.jar
-            elan-plugin/src/main/resources/cherokee-aligner.cmdi
-            elan-plugin/src/main/resources/recognizer.cmdi
+            dist/cherokee-aligner-elan-6.zip
+            dist/cherokee-aligner-elan-7.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-docker:
-    name: Build & Publish Docker Backend
-    runs-on: ubuntu-latest
-    needs: [test-backend]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/cherokee-aligner-backend
-          tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
-
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

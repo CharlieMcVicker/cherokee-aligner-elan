@@ -17,9 +17,11 @@ jobs:
       matrix:
         include:
           - elan_version: "6.6"
+            elan_major: "6"
             java_version: "17"
             download_url: "https://www.mpi.nl/tools/elan/ELAN_6-6_linux.tar.gz"
           - elan_version: "7.1"
+            elan_major: "7"
             java_version: "21"
             download_url: "https://www.mpi.nl/tools/elan/ELAN_7-1_linux.tar.gz"
     steps:
@@ -60,14 +62,38 @@ jobs:
           cd elan-plugin
           mvn clean test
 
-      - name: Package Plugin JAR
+      - name: Package Plugin JAR & Extension Zip
         run: |
+          mkdir -p dist
           cd elan-plugin
           mvn package -DskipTests
-          if [ ! -f "target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar" ]; then
-            echo "Error: Output JAR was not found at target-out/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar"
+          BUILT_JAR="$(find target-out -name "cherokee-aligner-plugin-*.jar" ! -name "original-*" | head -n 1)"
+          if [ -z "$BUILT_JAR" ] || [ ! -f "$BUILT_JAR" ]; then
+            echo "Error: Output JAR was not found at target-out"
             exit 1
           fi
+          
+          # Stage zip contents: jar + cherokee-aligner.cmdi + recognizer.cmdi
+          STAGING_DIR="/tmp/elan-staging-${{ matrix.elan_major }}"
+          rm -rf "$STAGING_DIR"
+          mkdir -p "$STAGING_DIR"
+          cp "$BUILT_JAR" "$STAGING_DIR/cherokee-aligner-plugin-elan${{ matrix.elan_major }}-1.0.0-SNAPSHOT.jar"
+          cp src/main/resources/cherokee-aligner.cmdi "$STAGING_DIR/"
+          cp src/main/resources/recognizer.cmdi "$STAGING_DIR/"
+          
+          ZIP_NAME="cherokee-aligner-elan-${{ matrix.elan_major }}.zip"
+          (cd "$STAGING_DIR" && zip -r "../../dist/${ZIP_NAME}" .)
+          rm -rf "$STAGING_DIR"
+          
+          echo "Verifying contents of dist/${ZIP_NAME}:"
+          unzip -l "../dist/${ZIP_NAME}"
+
+      - name: Upload Plugin Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip-elan-${{ matrix.elan_major }}
+          path: dist/cherokee-aligner-elan-${{ matrix.elan_major }}.zip
+          retention-days: 1
 
   test-backend:
     name: Test Python Backend (Docker)

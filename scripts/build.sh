@@ -91,8 +91,21 @@ build_single_elan() {
     cp -f "${raw_jar}" "${DIST_DIR}/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar"
     cp -f "${raw_jar}" "${ELAN_PLUGIN_DIR}/target-out/${versioned_jar_name}"
 
+    # Package extension zip archive containing JAR and CMDI descriptor files
+    local zip_staging="${DIST_DIR}/.zip_staging_elan${detected_ver}"
+    rm -rf "${zip_staging}"
+    mkdir -p "${zip_staging}"
+    cp -f "${DIST_DIR}/${versioned_jar_name}" "${zip_staging}/"
+    cp -f "${CMDI_FILE1}" "${zip_staging}/"
+    cp -f "${CMDI_FILE2}" "${zip_staging}/"
+    local zip_file="${DIST_DIR}/cherokee-aligner-elan-${detected_ver}.zip"
+    rm -f "${zip_file}"
+    (cd "${zip_staging}" && zip -q -r "${zip_file}" .)
+    rm -rf "${zip_staging}"
+
     echo "==> Build complete for ELAN ${detected_ver}:"
     echo "    - ${DIST_DIR}/${versioned_jar_name}"
+    echo "    - ${zip_file}"
     echo "    - ${ELAN_PLUGIN_DIR}/target-out/${versioned_jar_name}"
 }
 

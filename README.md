@@ -79,41 +79,45 @@ docker run -p 5050:5050 cherokee-aligner-backend
 ELAN on macOS loads extensions directly from its application package:
 `/Applications/ELAN_<version>.app/Contents/app/extensions/cherokee-aligner-ext/`
 
-#### Method 1: Install Pre-Built Plugin (No Maven required)
-If you already have the compiled `.jar` artifact (or downloaded a release):
+#### Method 1: Install from GitHub Release Zip (Recommended)
+Download the release zip matching your ELAN major version from GitHub Releases:
+* **ELAN 6.x:** `cherokee-aligner-elan-6.zip`
+* **ELAN 7.x:** `cherokee-aligner-elan-7.zip`
+
+You can extract the zip directly into your ELAN extensions directory:
+```bash
+mkdir -p /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext
+unzip cherokee-aligner-elan-6.zip -d /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext/
+```
+
+Or pass the zip directly to `install.sh`:
+```bash
+./scripts/install.sh /Applications/ELAN_6.6.app path/to/cherokee-aligner-elan-6.zip
+```
+
+#### Method 2: Install Pre-Built Plugin via Script
+If you have already built or downloaded the plugin artifacts in the repository:
 
 ```bash
 ./scripts/install.sh
 ```
-*You can also supply an explicit ELAN app or JAR path:*
-```bash
-./scripts/install.sh /Applications/ELAN_6.8.app path/to/cherokee-aligner-plugin.jar
-```
 
-#### Method 2: Build from Source Only (No install)
-To compile the shaded uber JAR without installing it into ELAN:
+#### Method 3: Build from Source Only (No install)
+To compile the plugin and generate the release zip and JAR in `dist/`:
 
 ```bash
-./scripts/build.sh
+./scripts/build.sh --elan 6   # Build for ELAN 6
+./scripts/build.sh --elan 7   # Build for ELAN 7
+./scripts/build.sh --all      # Build for both ELAN 6 & 7
 ```
 
-#### Method 3: Build from Source & Install in One Step
-If you have JDK 17+ and Maven installed:
+#### Method 4: Build from Source & Install in One Step
+If you have JDK 17+ (or JDK 21 for ELAN 7) and Maven installed:
 
 ```bash
 ./scripts/build-and-install.sh
 ```
 *(This automatically links `elan.jar`, compiles the shaded uber JAR with Maven via `build.sh`, and installs the plugin and `.cmdi` descriptors into your ELAN application bundle via `install.sh`)*
-
-#### Method 4: Manual Installation
-Copy the JAR and `.cmdi` files directly into ELAN's extension directory:
-```bash
-mkdir -p /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext
-cp elan-plugin/target/cherokee-aligner-plugin-1.0.0-SNAPSHOT.jar \
-   elan-plugin/src/main/resources/cherokee-aligner.cmdi \
-   elan-plugin/src/main/resources/recognizer.cmdi \
-   /Applications/ELAN_6.6.app/Contents/app/extensions/cherokee-aligner-ext/
-```
 
 ---
 
