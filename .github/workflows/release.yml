@@ -128,7 +128,8 @@ jobs:
             VERSION="1.0.0"
           fi
           echo "Packaging plugin version $VERSION for ELAN ${{ matrix.elan_version }}"
-          mkdir -p dist
+          DIST_DIR="${GITHUB_WORKSPACE:-$(pwd)}/dist"
+          mkdir -p "$DIST_DIR"
           cd elan-plugin
           mvn clean package -DskipTests
           BUILT_JAR="$(find target-out -name "cherokee-aligner-plugin-*.jar" ! -name "original-*" | head -n 1)"
@@ -148,11 +149,11 @@ jobs:
           cp src/main/resources/recognizer.cmdi "$STAGING_DIR/"
           
           ZIP_NAME="cherokee-aligner-elan-${{ matrix.elan_major }}.zip"
-          (cd "$STAGING_DIR" && zip -r "../../dist/${ZIP_NAME}" .)
+          (cd "$STAGING_DIR" && zip -r "${DIST_DIR}/${ZIP_NAME}" .)
           rm -rf "$STAGING_DIR"
           
           echo "Verifying contents of dist/${ZIP_NAME}:"
-          unzip -l "../dist/${ZIP_NAME}"
+          unzip -l "${DIST_DIR}/${ZIP_NAME}"
 
       - name: Upload Plugin Zip Artifact
         uses: actions/upload-artifact@v4
