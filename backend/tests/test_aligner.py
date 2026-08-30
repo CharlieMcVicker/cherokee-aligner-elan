@@ -51,10 +51,11 @@ def test_orthography_helpers():
     assert syllabary_raw == ""
     assert phonetic_raw == "osiyo"
 
-@patch("model_runner.get_best_model")
+@patch("model_runner.CherokeeASRModel")
 @patch("model_runner.align_audio_segment")
-def test_align_segment_success(mock_align, mock_get_model, client):
-    mock_get_model.return_value = (MagicMock(), MagicMock(), "cpu")
+def test_align_segment_success(mock_align, mock_asr_model, client):
+    mock_model_instance = MagicMock()
+    mock_asr_model.get_best_model.return_value = mock_model_instance
     mock_alignment = AlignmentResult(
         audio_source="test.wav",
         verses=[
@@ -96,10 +97,11 @@ def test_align_segment_success(mock_align, mock_get_model, client):
     assert words[1]["end_ms"] == 900
     assert words[1]["confidence"] == 0.94
 
-@patch("model_runner.get_best_model")
+@patch("model_runner.CherokeeASRModel")
 @patch("model_runner.align_audio_segment")
-def test_align_segment_fallback_uniform_slicing(mock_align, mock_get_model, client):
-    mock_get_model.return_value = (MagicMock(), MagicMock(), "cpu")
+def test_align_segment_fallback_uniform_slicing(mock_align, mock_asr_model, client):
+    mock_model_instance = MagicMock()
+    mock_asr_model.get_best_model.return_value = mock_model_instance
     # Empty words triggers uniform fallback
     mock_alignment = AlignmentResult(
         audio_source="test.wav",

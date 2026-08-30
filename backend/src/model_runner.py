@@ -4,8 +4,9 @@ Model runner and alignment engine execution.
 import io
 import logging
 from pydub import AudioSegment
+from transcription.alignment.strategies.extractors import CherokeeASRExtractor
+from transcription.models.asr_model import CherokeeASRModel
 from transcription.timestamping.aligner import align_audio_segment
-from transcription.utils.model_utils import get_best_model
 from orthography import prepare_transcript_for_alignment
 
 logger = logging.getLogger(__name__)
@@ -41,14 +42,13 @@ def run_alignment(wav_bytes: bytes, transcript: str, script_type: str = "syllaba
     }]
 
     # 3. Perform CTC emissions extraction & DTW alignment
-    model, processor, _ = get_best_model()
+    asr_model = CherokeeASRModel.get_best_model()
+    extractor = CherokeeASRExtractor(model=asr_model, skip_vad=True)
     alignment = align_audio_segment(
         audio_input=audio_seg,
         verses=verses,
-        model_or_fn=model,
-        processor=processor,
+        extractor=extractor,
         audio_source="elan_segment.wav",
-        skip_vad=True,
         reconcile=(script_type == "syllabary")
     )
 
