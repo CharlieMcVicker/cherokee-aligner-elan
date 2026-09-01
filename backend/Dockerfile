@@ -12,7 +12,7 @@ COPY pyproject.toml .
 RUN mkdir -p src && pip install --no-cache-dir .
 
 # Revision hash for workshop-transcription (update this variable to bust cache & rebuild dep)
-ENV TRANSCRIPTION_REVISION="44a503a544ef7338981ab0d75235005d9d1db943"
+ENV TRANSCRIPTION_REVISION="4132df6e2be3fb7c2fecf53c69c7cfff273e115a"
 
 # Reinstall git dependency at the specified revision
 RUN pip install --no-cache-dir --force-reinstall --no-deps "workshop-transcription @ git+https://github.com/charliemcvicker/cherokee-ASR.git@${TRANSCRIPTION_REVISION}"

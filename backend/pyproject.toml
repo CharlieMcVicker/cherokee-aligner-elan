@@ -11,7 +11,7 @@ dependencies = [
     "Flask>=3.0.0",
     "pytest>=8.0.0",
     "requests>=2.31.0",
-    "workshop-transcription @ git+https://github.com/charliemcvicker/cherokee-ASR.git@main",
+    "workshop-transcription @ git+https://github.com/charliemcvicker/cherokee-ASR.git@4132df6e2be3fb7c2fecf53c69c7cfff273e115a",
 ]
 
 [project.optional-dependencies]

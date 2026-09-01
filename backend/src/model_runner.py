@@ -4,8 +4,11 @@ Model runner and alignment engine execution.
 import io
 import logging
 from pydub import AudioSegment
-from transcription.timestamping.aligner import align_audio_segment
-from transcription.utils.model_utils import get_best_model
+from transcription.alignment.core.sliding_window import SlidingWindowDTWAligner
+from transcription.alignment.domain.models import TextChunk
+from transcription.alignment.strategies.extractors import CherokeeASRExtractor
+from transcription.alignment.strategies.reconciliation import CherokeeSyllabaryReconciliationStrategy
+from transcription.models.asr_model import CherokeeASRModel
 from orthography import prepare_transcript_for_alignment
 
 logger = logging.getLogger(__name__)
@@ -30,33 +33,33 @@ def run_alignment(wav_bytes: bytes, transcript: str, script_type: str = "syllaba
     audio_seg = normalize_audio_to_16k(wav_bytes)
     total_duration_ms = len(audio_seg)
 
-    # 2. Build verse ground-truth entry via orthography helper
+    # 2. Build ground-truth chunk via orthography helper
     syllabary_text, raw_phonetic = prepare_transcript_for_alignment(transcript, script_type)
 
-    verses = [{
-        "line_id": "seg_0",
-        "cherokee_syllabary": syllabary_text,
-        "raw_phonetic": raw_phonetic,
-        "english": ""
-    }]
+    chunks = [
+        TextChunk(
+            chunk_id="seg_0",
+            raw_text=raw_phonetic,
+            syllabary_text=syllabary_text if syllabary_text else None,
+        )
+    ]
 
     # 3. Perform CTC emissions extraction & DTW alignment
-    model, processor, _ = get_best_model()
-    alignment = align_audio_segment(
-        audio_input=audio_seg,
-        verses=verses,
-        model_or_fn=model,
-        processor=processor,
-        audio_source="elan_segment.wav",
-        skip_vad=True,
-        reconcile=(script_type == "syllabary")
+    asr_model = CherokeeASRModel.get_best_model()
+    extractor = CherokeeASRExtractor(model=asr_model, skip_vad=True)
+    emissions = extractor.extract(audio_seg)
+
+    reconciliation_strategy = (
+        CherokeeSyllabaryReconciliationStrategy() if script_type == "syllabary" else None
     )
+    aligner = SlidingWindowDTWAligner(reconciliation_strategy=reconciliation_strategy)
+    alignment = aligner.align_chunks(emissions=emissions, chunks=chunks)
 
     results = []
-    if alignment.verses and alignment.verses[0].words:
-        for w in alignment.verses[0].words:
+    if alignment.aligned_chunks and alignment.aligned_chunks[0].words:
+        for w in alignment.aligned_chunks[0].words:
             # Prefer original syllabary text if available for the word, or fallback to word
-            text = w.cherokee_syllabary if (script_type == "syllabary" and w.cherokee_syllabary) else w.word
+            text = w.syllabary if (script_type == "syllabary" and w.syllabary) else w.word
             start_ms = max(0, int(round(w.start_sec * 1000)))
             end_ms = min(total_duration_ms, int(round(w.end_sec * 1000)))
             if end_ms <= start_ms:
