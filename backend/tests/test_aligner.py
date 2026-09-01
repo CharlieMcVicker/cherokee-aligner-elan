@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from app import app
 from model_runner import normalize_audio_to_16k
-from transcription.timestamping.aligner import AlignmentResult, VerseInterval, WordInterval
+from transcription.alignment.domain.models import AlignmentOutput, AlignedChunk, TextChunk, WordInterval
 from orthography import syllabary_to_phonetics, phonetics_to_target_script, prepare_transcript_for_alignment
 
 def make_dummy_wav(duration_ms=1000, sample_rate=44100):
@@ -52,28 +52,33 @@ def test_orthography_helpers():
     assert phonetic_raw == "osiyo"
 
 @patch("model_runner.CherokeeASRModel")
-@patch("model_runner.align_audio_segment")
-def test_align_segment_success(mock_align, mock_asr_model, client):
+@patch("model_runner.SlidingWindowDTWAligner")
+@patch("model_runner.CherokeeASRExtractor")
+def test_align_segment_success(mock_extractor_cls, mock_aligner_cls, mock_asr_model, client):
     mock_model_instance = MagicMock()
     mock_asr_model.get_best_model.return_value = mock_model_instance
-    mock_alignment = AlignmentResult(
-        audio_source="test.wav",
-        verses=[
-            VerseInterval(
-                line_id="seg_0",
-                cherokee_syllabary="ᎣᏏᏲ ᏏᏲ",
-                raw_phonetic="osiyo siyo",
-                english="",
+    mock_extractor = MagicMock()
+    mock_extractor_cls.return_value = mock_extractor
+    mock_extractor.extract.return_value = []
+
+    mock_aligner = MagicMock()
+    mock_aligner_cls.return_value = mock_aligner
+    mock_alignment = AlignmentOutput(
+        source_id="test.wav",
+        aligned_chunks=[
+            AlignedChunk(
+                chunk_id="seg_0",
+                chunk=TextChunk(chunk_id="seg_0", raw_text="osiyo siyo", syllabary_text="ᎣᏏᏲ ᏏᏲ"),
                 start_sec=0.1,
                 end_sec=0.9,
                 words=[
-                    WordInterval(word="osiyo", start_sec=0.1, end_sec=0.5, confidence=0.96, cherokee_syllabary="ᎣᏏᏲ"),
-                    WordInterval(word="siyo", start_sec=0.5, end_sec=0.9, confidence=0.94, cherokee_syllabary="ᏏᏲ"),
+                    WordInterval(word="osiyo", start_sec=0.1, end_sec=0.5, confidence=0.96, syllabary="ᎣᏏᏲ"),
+                    WordInterval(word="siyo", start_sec=0.5, end_sec=0.9, confidence=0.94, syllabary="ᏏᏲ"),
                 ]
             )
         ]
     )
-    mock_align.return_value = mock_alignment
+    mock_aligner.align_chunks.return_value = mock_alignment
 
     wav_buf = make_dummy_wav(duration_ms=1000, sample_rate=44100)
     data = {
@@ -98,26 +103,31 @@ def test_align_segment_success(mock_align, mock_asr_model, client):
     assert words[1]["confidence"] == 0.94
 
 @patch("model_runner.CherokeeASRModel")
-@patch("model_runner.align_audio_segment")
-def test_align_segment_fallback_uniform_slicing(mock_align, mock_asr_model, client):
+@patch("model_runner.SlidingWindowDTWAligner")
+@patch("model_runner.CherokeeASRExtractor")
+def test_align_segment_fallback_uniform_slicing(mock_extractor_cls, mock_aligner_cls, mock_asr_model, client):
     mock_model_instance = MagicMock()
     mock_asr_model.get_best_model.return_value = mock_model_instance
+    mock_extractor = MagicMock()
+    mock_extractor_cls.return_value = mock_extractor
+    mock_extractor.extract.return_value = []
+
+    mock_aligner = MagicMock()
+    mock_aligner_cls.return_value = mock_aligner
     # Empty words triggers uniform fallback
-    mock_alignment = AlignmentResult(
-        audio_source="test.wav",
-        verses=[
-            VerseInterval(
-                line_id="seg_0",
-                cherokee_syllabary="ᎣᏏᏲ ᏏᏲ",
-                raw_phonetic="osiyo siyo",
-                english="",
+    mock_alignment = AlignmentOutput(
+        source_id="test.wav",
+        aligned_chunks=[
+            AlignedChunk(
+                chunk_id="seg_0",
+                chunk=TextChunk(chunk_id="seg_0", raw_text="osiyo siyo", syllabary_text="ᎣᏏᏲ ᏏᏲ"),
                 start_sec=0.0,
                 end_sec=0.0,
                 words=[]
             )
         ]
     )
-    mock_align.return_value = mock_alignment
+    mock_aligner.align_chunks.return_value = mock_alignment
     wav_buf = make_dummy_wav(duration_ms=1000)
     data = {
         "audio": (wav_buf, "segment.wav"),
