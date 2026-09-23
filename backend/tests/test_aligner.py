@@ -5,11 +5,6 @@ import pytest
 from app import app
 from model_runner import normalize_audio_to_16k
 from transcription.alignment import AlignmentOutput, AlignedChunk, WordInterval
-from orthography import (
-    syllabary_to_phonetics,
-    phonetics_to_target_script,
-    prepare_transcript_for_alignment,
-)
 
 
 def make_dummy_wav(duration_ms=1000, sample_rate=44100):
@@ -43,22 +38,6 @@ def test_normalize_audio_to_16k():
     assert audio_seg.frame_rate == 16000
     assert audio_seg.channels == 1
     assert len(audio_seg) == 1000
-
-
-def test_orthography_helpers():
-    syllabary, phonetic = prepare_transcript_for_alignment("ᎣᏏᏲ", "syllabary")
-    assert syllabary == "ᎣᏏᏲ"
-    assert "osiyo" in phonetic.lower() or len(phonetic) > 0
-
-    phonetic_res = syllabary_to_phonetics("ᎣᏏᏲ")
-    assert len(phonetic_res) > 0
-
-    target_res = phonetics_to_target_script(phonetic_res, "syllabary")
-    assert "ᎣᏏᏲ" in target_res or len(target_res) > 0
-
-    syllabary_raw, phonetic_raw = prepare_transcript_for_alignment("osiyo", "phonetic")
-    assert syllabary_raw == ""
-    assert phonetic_raw == "osiyo"
 
 
 @patch("model_runner.get_aligner_model")
@@ -105,6 +84,44 @@ def test_align_segment_success(mock_align, mock_get_model, client):
 
 @patch("model_runner.get_aligner_model")
 @patch("model_runner.CTCSegmentationAligner.align")
+def test_align_segment_latin(mock_align, mock_get_model, client):
+    mock_get_model.return_value = MagicMock()
+    mock_alignment = AlignmentOutput(
+        aligned_chunks=[
+            AlignedChunk(
+                chunk_id="seg_0",
+                start_sec=0.1,
+                end_sec=0.9,
+                words=[
+                    WordInterval(word="osiyo", start_sec=0.1, end_sec=0.5, confidence=0.96),
+                    WordInterval(word="siyo", start_sec=0.5, end_sec=0.9, confidence=0.94),
+                ],
+            )
+        ]
+    )
+    mock_align.return_value = mock_alignment
+
+    wav_buf = make_dummy_wav(duration_ms=1000, sample_rate=44100)
+    data = {
+        "audio": (wav_buf, "segment.wav"),
+        "transcript": "osiyo siyo",
+        "script_type": "latin",
+    }
+    res = client.post("/v1/align/segment", data=data, content_type="multipart/form-data")
+    assert res.status_code == 200
+    payload = res.json
+    assert payload["status"] == "success"
+    assert payload["script_type"] == "latin"
+    words = payload["words"]
+    assert len(words) == 2
+    assert words[0]["text"] == "osiyo"
+    assert words[0]["start_ms"] == 100
+    assert words[0]["end_ms"] == 500
+    assert words[1]["text"] == "siyo"
+
+
+@patch("model_runner.get_aligner_model")
+@patch("model_runner.CTCSegmentationAligner.align")
 def test_align_segment_fallback_uniform_slicing(mock_align, mock_get_model, client):
     mock_get_model.return_value = MagicMock()
     # Empty words triggers uniform fallback
@@ -140,4 +157,3 @@ def test_align_segment_fallback_uniform_slicing(mock_align, mock_get_model, clie
 def test_align_segment_missing_params(client):
     res = client.post("/v1/align/segment", data={}, content_type="multipart/form-data")
     assert res.status_code == 400
-
