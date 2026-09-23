@@ -2,15 +2,16 @@
 Preloads and caches the Cherokee ASR model weights and processor from Hugging Face during container build.
 """
 import logging
-from transcription.utils.model_utils import get_best_model
+from transcription.cherokee.models import CherokeeASRModel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 def main():
     logger.info("Pre-downloading Cherokee ASR model weights and processor...")
-    model, processor, model_name = get_best_model()
-    logger.info("Successfully cached model: %s", model_name)
+    model = CherokeeASRModel.get_best_model()
+    logger.info("Successfully cached model: %s", getattr(model, "model_name", "best_model"))
 
 if __name__ == "__main__":
     main()
+
