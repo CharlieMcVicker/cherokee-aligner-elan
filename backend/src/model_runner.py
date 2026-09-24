@@ -7,7 +7,7 @@ from typing import Optional
 from pydub import AudioSegment
 
 from transcription.alignment import CTCSegmentationAligner, CTCAlignerConfig, TextChunk
-from transcription.cherokee.models import CherokeeASRModel
+from transcription.cherokee.models.loader import CherokeeASRModel
 from transcription.cherokee.orthography import (
     Orthography,
     clean_punctuation_and_whitespace,

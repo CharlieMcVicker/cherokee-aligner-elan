@@ -2,7 +2,7 @@
 Preloads and caches the Cherokee ASR model weights and processor from Hugging Face during container build.
 """
 import logging
-from transcription.cherokee.models import CherokeeASRModel
+from transcription.cherokee.models.loader import CherokeeASRModel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
