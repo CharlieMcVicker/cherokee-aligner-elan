@@ -49,16 +49,32 @@ def run_alignment(wav_bytes: bytes, transcript: str, script_type: str = "syllaba
     total_duration_ms = len(audio_seg)
 
     # 2. Build text chunk and configure phonotactics
-    if script_type == "syllabary":
+    norm_script = script_type.strip().lower() if script_type else "syllabary"
+    if norm_script == "syllabary":
         phonetic_text = convert_orthography(
             text=transcript.strip(),
             source=Orthography.SYLLABARY,
             target=Orthography.TTH,
         )
         enforce_phonotactics = True
-    else:
+    elif norm_script in ("dg", "latin"):
+        phonetic_text = convert_orthography(
+            text=transcript.strip(),
+            source=Orthography.DG,
+            target=Orthography.TTH,
+        )
+        enforce_phonotactics = False
+    elif norm_script == "tth":
         phonetic_text = clean_punctuation_and_whitespace(transcript)
         enforce_phonotactics = False
+    else:
+        # Fallback / default: treat as syllabary if unrecognized
+        phonetic_text = convert_orthography(
+            text=transcript.strip(),
+            source=Orthography.SYLLABARY,
+            target=Orthography.TTH,
+        )
+        enforce_phonotactics = True
 
     chunks = [TextChunk(chunk_id="seg_0", text=phonetic_text)]
 

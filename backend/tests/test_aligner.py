@@ -83,10 +83,12 @@ def test_align_segment_success(mock_align, mock_get_model, client):
 
 
 @patch("model_runner.get_aligner_model")
-@patch("model_runner.CTCSegmentationAligner.align")
-def test_align_segment_latin(mock_align, mock_get_model, client):
+@patch("model_runner.CTCSegmentationAligner")
+def test_align_segment_syllabary_config(mock_aligner_cls, mock_get_model, client):
     mock_get_model.return_value = MagicMock()
-    mock_alignment = AlignmentOutput(
+    mock_aligner_instance = MagicMock()
+    mock_aligner_cls.return_value = mock_aligner_instance
+    mock_aligner_instance.align.return_value = AlignmentOutput(
         aligned_chunks=[
             AlignedChunk(
                 chunk_id="seg_0",
@@ -99,25 +101,104 @@ def test_align_segment_latin(mock_align, mock_get_model, client):
             )
         ]
     )
-    mock_align.return_value = mock_alignment
 
     wav_buf = make_dummy_wav(duration_ms=1000, sample_rate=44100)
     data = {
         "audio": (wav_buf, "segment.wav"),
-        "transcript": "osiyo siyo",
-        "script_type": "latin",
+        "transcript": "ᎣᏏᏲ ᏏᏲ",
+        "script_type": "syllabary",
     }
     res = client.post("/v1/align/segment", data=data, content_type="multipart/form-data")
     assert res.status_code == 200
-    payload = res.json
-    assert payload["status"] == "success"
-    assert payload["script_type"] == "latin"
-    words = payload["words"]
-    assert len(words) == 2
-    assert words[0]["text"] == "osiyo"
-    assert words[0]["start_ms"] == 100
-    assert words[0]["end_ms"] == 500
-    assert words[1]["text"] == "siyo"
+    # Check aligner config and chunk
+    config_arg = mock_aligner_cls.call_args[1]["config"]
+    assert config_arg.enforce_phonotactics is True
+    chunks_arg = mock_aligner_instance.align.call_args[1]["chunks"]
+    assert chunks_arg[0].text == "ohsiyo siyo"
+
+
+@patch("model_runner.get_aligner_model")
+@patch("model_runner.CTCSegmentationAligner")
+def test_align_segment_dg_and_latin(mock_aligner_cls, mock_get_model, client):
+    mock_get_model.return_value = MagicMock()
+    mock_aligner_instance = MagicMock()
+    mock_aligner_cls.return_value = mock_aligner_instance
+    mock_aligner_instance.align.return_value = AlignmentOutput(
+        aligned_chunks=[
+            AlignedChunk(
+                chunk_id="seg_0",
+                start_sec=0.1,
+                end_sec=0.9,
+                words=[
+                    WordInterval(word="osiyo", start_sec=0.1, end_sec=0.5, confidence=0.96),
+                    WordInterval(word="siyo", start_sec=0.5, end_sec=0.9, confidence=0.94),
+                ],
+            )
+        ]
+    )
+
+    # Test "dg"
+    wav_buf = make_dummy_wav(duration_ms=1000, sample_rate=44100)
+    data = {
+        "audio": (wav_buf, "segment.wav"),
+        "transcript": "osiyo siyo",
+        "script_type": "dg",
+    }
+    res = client.post("/v1/align/segment", data=data, content_type="multipart/form-data")
+    assert res.status_code == 200
+    assert res.json["script_type"] == "dg"
+    config_arg = mock_aligner_cls.call_args[1]["config"]
+    assert config_arg.enforce_phonotactics is False
+    chunks_arg = mock_aligner_instance.align.call_args[1]["chunks"]
+    assert chunks_arg[0].text == "ohsiyo hsiyo"
+
+    # Test "latin"
+    wav_buf2 = make_dummy_wav(duration_ms=1000, sample_rate=44100)
+    data2 = {
+        "audio": (wav_buf2, "segment.wav"),
+        "transcript": "osiyo siyo",
+        "script_type": "latin",
+    }
+    res2 = client.post("/v1/align/segment", data=data2, content_type="multipart/form-data")
+    assert res2.status_code == 200
+    assert res2.json["script_type"] == "latin"
+    config_arg2 = mock_aligner_cls.call_args[1]["config"]
+    assert config_arg2.enforce_phonotactics is False
+
+
+@patch("model_runner.get_aligner_model")
+@patch("model_runner.CTCSegmentationAligner")
+def test_align_segment_tth(mock_aligner_cls, mock_get_model, client):
+    mock_get_model.return_value = MagicMock()
+    mock_aligner_instance = MagicMock()
+    mock_aligner_cls.return_value = mock_aligner_instance
+    mock_aligner_instance.align.return_value = AlignmentOutput(
+        aligned_chunks=[
+            AlignedChunk(
+                chunk_id="seg_0",
+                start_sec=0.1,
+                end_sec=0.9,
+                words=[
+                    WordInterval(word="tla", start_sec=0.1, end_sec=0.5, confidence=0.96),
+                    WordInterval(word="kohwstih", start_sec=0.5, end_sec=0.9, confidence=0.94),
+                ],
+            )
+        ]
+    )
+
+    wav_buf = make_dummy_wav(duration_ms=1000, sample_rate=44100)
+    data = {
+        "audio": (wav_buf, "segment.wav"),
+        "transcript": "tla kohwstih!",
+        "script_type": "tth",
+    }
+    res = client.post("/v1/align/segment", data=data, content_type="multipart/form-data")
+    assert res.status_code == 200
+    assert res.json["script_type"] == "tth"
+    config_arg = mock_aligner_cls.call_args[1]["config"]
+    assert config_arg.enforce_phonotactics is False
+    chunks_arg = mock_aligner_instance.align.call_args[1]["chunks"]
+    assert chunks_arg[0].text == "tla kohwstih"
 
 
 @patch("model_runner.get_aligner_model")

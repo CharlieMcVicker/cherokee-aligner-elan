@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@agent'
 created_date: '2026-09-23 18:31'
-updated_date: '2026-09-23 18:36'
+updated_date: '2026-09-24 13:12'
 labels: []
 dependencies: []
 modified_files:
@@ -45,10 +45,12 @@ Major updates in cherokee-ASR introduce CTCSegmentationAligner for syncope-aware
 
 <!-- SECTION:NOTES:BEGIN -->
 Updated upstream workshop-transcription dependency to commit 7693a21. Refactored orthography.py to cleanly delegate to transcription.cherokee.orthography (Orthography, convert_orthography, clean_punctuation_and_whitespace). Updated model_runner.py to use CTCSegmentationAligner, CTCAlignerConfig, TextChunk, and CherokeeASRModel. Updated unit tests in test_aligner.py and verified all 6 unit tests pass.
+
+Bumped upstream workshop-transcription dependency to commit 2ddd5e28b8a2a40ef47a3d0b76117ce7154b1506 which includes ctc-segmentation git dependency. Added runtime dependencies (matplotlib, g2p_en) to pyproject.toml to support upstream transitive imports during container pre-download. Successfully verified local docker build, local pytest, and remote GitHub Actions CI.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Migrated backend aligner to CTCSegmentationAligner and centralized Cherokee orthography conversions. All unit tests verified passing with pytest.
+Migrated backend aligner to CTCSegmentationAligner, removed redundant orthography module, indexed directly into input transcript, bumped upstream workshop-transcription revision (commit 2ddd5e28), and fixed container build runtime dependencies. Verified local docker build and confirmed all GitHub Actions CI checks passed.
 <!-- SECTION:FINAL_SUMMARY:END -->
