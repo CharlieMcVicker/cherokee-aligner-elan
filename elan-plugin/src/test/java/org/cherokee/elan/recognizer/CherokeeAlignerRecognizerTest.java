@@ -91,9 +91,17 @@ public class CherokeeAlignerRecognizerTest {
         assertEquals("https://align.example.com:8080", alignerPanel.getServerUrl());
         assertEquals("https://align.example.com:8080", recognizer.getParameterValue("server_url"));
 
+        recognizer.setParameterValue("script_type", "dg");
+        assertEquals("dg", alignerPanel.getScriptType());
+        assertEquals("dg", recognizer.getParameterValue("script_type"));
+
+        recognizer.setParameterValue("script_type", "tth");
+        assertEquals("tth", alignerPanel.getScriptType());
+        assertEquals("tth", recognizer.getParameterValue("script_type"));
+
         recognizer.setParameterValue("script_type", "latin");
-        assertEquals("latin", alignerPanel.getScriptType());
-        assertEquals("latin", recognizer.getParameterValue("script_type"));
+        assertEquals("dg", alignerPanel.getScriptType());
+        assertEquals("dg", recognizer.getParameterValue("script_type"));
 
         recognizer.setParameterValue("target_tier", "sentences");
         assertEquals("sentences", alignerPanel.getTargetTierName());
@@ -101,16 +109,16 @@ public class CherokeeAlignerRecognizerTest {
 
         Map<String, Object> prefs = alignerPanel.getParamPreferences();
         assertEquals("https://align.example.com:8080", prefs.get("server_url"));
-        assertEquals("latin", prefs.get("script_type"));
+        assertEquals("dg", prefs.get("script_type"));
         assertEquals("sentences", prefs.get("target_tier"));
 
         Map<String, Object> newPrefs = new HashMap<>();
         newPrefs.put("server_url", "http://127.0.0.1:5050");
-        newPrefs.put("script_type", "syllabary");
+        newPrefs.put("script_type", "tth");
         newPrefs.put("target_tier", "words");
         alignerPanel.setParamPreferences(newPrefs);
         assertEquals("http://127.0.0.1:5050", alignerPanel.getServerUrl());
-        assertEquals("syllabary", alignerPanel.getScriptType());
+        assertEquals("tth", alignerPanel.getScriptType());
         assertEquals("words", alignerPanel.getTargetTierName());
     }
 
