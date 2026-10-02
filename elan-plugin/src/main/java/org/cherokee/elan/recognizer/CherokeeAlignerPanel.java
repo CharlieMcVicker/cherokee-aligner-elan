@@ -97,7 +97,7 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        scriptTypeCombo = new JComboBox<>(new String[]{"syllabary", "latin"});
+        scriptTypeCombo = new JComboBox<>(new String[]{"syllabary", "dg", "tth"});
         scriptTypeCombo.setSelectedItem("syllabary");
         settingsPanel.add(scriptTypeCombo, gbc);
 
@@ -137,7 +137,17 @@ public class CherokeeAlignerPanel extends JPanel implements ParamPreferences {
 
     public void setScriptType(String scriptType) {
         if (scriptTypeCombo != null && scriptType != null) {
-            scriptTypeCombo.setSelectedItem(scriptType);
+            String norm = scriptType.trim().toLowerCase();
+            if ("latin".equals(norm)) {
+                norm = "dg";
+            }
+            for (int i = 0; i < scriptTypeCombo.getItemCount(); i++) {
+                if (scriptTypeCombo.getItemAt(i).equalsIgnoreCase(norm)) {
+                    scriptTypeCombo.setSelectedIndex(i);
+                    return;
+                }
+            }
+            scriptTypeCombo.setSelectedItem(norm);
         }
     }
 

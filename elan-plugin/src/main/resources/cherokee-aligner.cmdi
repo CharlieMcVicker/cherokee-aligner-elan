@@ -20,7 +20,7 @@
             <input level="basic" type="tier" optional="false" mimetypes="text/plain" info="Source sentence tier to align">tier</input>
             
             <textparam level="basic" default="http://localhost:5050" info="Cherokee alignment server URL (e.g. http://localhost:5050)">server_url</textparam>
-            <textparam level="basic" convoc="syllabary latin" default="syllabary" info="Cherokee orthography script type (syllabary or latin)">script_type</textparam>
+            <textparam level="basic" convoc="syllabary dg tth latin" default="syllabary" info="Cherokee orthography script type (syllabary, dg, or tth)">script_type</textparam>
         </RECOGNIZER>
     </Components>
 </CMD>
